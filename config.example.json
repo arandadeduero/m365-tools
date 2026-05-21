@@ -1,0 +1,7 @@
+{
+  "tenantId": "YOUR_TENANT_ID",
+  "clientId": "YOUR_CLIENT_ID",
+  "clientSecret": "YOUR_CLIENT_SECRET",
+  "domain": "yourdomain.com",
+  "scopes": ["User.ReadWrite.All", "Directory.ReadWrite.All"]
+}

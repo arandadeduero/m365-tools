@@ -1,0 +1,5 @@
+userPrincipalName,displayName,givenName,surname,mailNickname,jobTitle,department,companyName,employeeId,employeeType,officeLocation,mobilePhone,businessPhone,streetAddress,city,state,postalCode,country,usageLocation,preferredLanguage,accountEnabled,password,forceChangePasswordNextSignIn,manager
+jdoe@contoso.com,John Doe,John,Doe,jdoe,Software Engineer,Engineering,Contoso Ltd,EMP001,Employee,Madrid - Floor 3,+34600000001,+34910000001,123 Example Street,Madrid,Madrid,28000,ES,ES,es-ES,true,<TEMP_PASSWORD>,true,manager@contoso.com
+asmith@contoso.com,Alice Smith,Alice,Smith,asmith,Product Manager,Product,Contoso Ltd,EMP002,Employee,Madrid - Floor 2,+34600000002,,123 Example Street,Madrid,Madrid,28000,ES,ES,en-US,true,<TEMP_PASSWORD>,true,jdoe@contoso.com
+bjones@contoso.com,Bob Jones,Bob,Jones,bjones,UX Designer,Design,Contoso Ltd,EMP003,Employee,Barcelona - Floor 1,+34600000003,,456 Example Avenue,Barcelona,Catalonia,08000,ES,ES,es-ES,true,<TEMP_PASSWORD>,true,asmith@contoso.com
+contractor1@contoso.com,Maria Garcia,Maria,Garcia,mgarcia,DevOps Engineer,IT Infrastructure,Contoso Ltd,CON001,Contractor,Remote,,,,,,,,ES,es-ES,true,<TEMP_PASSWORD>,true,jdoe@contoso.com

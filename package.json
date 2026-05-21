@@ -1,0 +1,23 @@
+{
+  "name": "m365-users",
+  "version": "1.0.0",
+  "description": "CLI tool to manage Microsoft 365 users via Graph API",
+  "type": "module",
+  "bin": {
+    "m365-users": "./src/index.js"
+  },
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "@azure/identity": "^4.4.1",
+    "@microsoft/microsoft-graph-client": "^3.0.7",
+    "chalk": "^5.3.0",
+    "commander": "^12.1.0",
+    "csv-parse": "^5.5.6",
+    "inquirer": "^9.3.7"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

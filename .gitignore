@@ -1,0 +1,31 @@
+# Local configuration — contains real tenant/client IDs
+config.json
+
+# Dependencies
+node_modules/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Token/credential cache
+*.token.json
+token.json
+.cache/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor directories
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
+
+# User-supplied CSV data files (keep only the sample)
+*.csv
+!sample.csv
