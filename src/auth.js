@@ -1,5 +1,5 @@
 import { DeviceCodeCredential } from '@azure/identity';
-import { saveToken, loadToken, isTokenExpired } from './utils/token-store.js';
+import { saveToken, loadToken, isTokenExpired, clearToken } from './utils/token-store.js';
 import chalk from 'chalk';
 
 let _credential = null;
@@ -9,7 +9,7 @@ export function initAuth(config) {
   _config = config;
 }
 
-/** Returns the configured tenant domain (e.g. "arandadeduero.es") */
+/** Returns the configured tenant domain (e.g. "contoso.com") */
 export function getDomain() {
   return _config?.domain || '';
 }
@@ -19,7 +19,7 @@ export function getDomain() {
  * Performs Device Code Flow on first run or if token is expired.
  */
 export async function getAccessToken() {
-  const cached = loadToken();
+  const cached = await loadToken();
 
   if (cached && !isTokenExpired(cached)) {
     return cached.accessToken;
@@ -41,7 +41,7 @@ export async function getAccessToken() {
 
   const tokenResponse = await credential.getToken(normalizedScopes);
 
-  saveToken({
+  await saveToken({
     accessToken: tokenResponse.token,
     expiresAt: tokenResponse.expiresOnTimestamp,
   });
@@ -81,8 +81,7 @@ function getCredential() {
  * Force re-authentication by clearing cached token and getting a new one.
  */
 export async function login() {
-  const { clearToken } = await import('./utils/token-store.js');
-  clearToken();
+  await clearToken();
   _credential = null; // Reset credential to force new device code prompt
   return getAccessToken();
 }
@@ -91,8 +90,7 @@ export async function login() {
  * Clear saved session token.
  */
 export async function logout() {
-  const { clearToken } = await import('./utils/token-store.js');
-  clearToken();
+  await clearToken();
   _credential = null;
   console.log(chalk.green('Logged out. Session token cleared.'));
 }

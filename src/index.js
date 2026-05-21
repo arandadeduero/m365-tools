@@ -1,9 +1,8 @@
 #!/usr/bin/env node
 
 import { program } from 'commander';
-import { readFileSync, existsSync } from 'fs';
-import { resolve, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { readFile, access } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import chalk from 'chalk';
 import { initAuth, login, logout, getDomain } from './auth.js';
 import { normalizeUpn } from './utils/upn.js';
@@ -13,23 +12,24 @@ import { editUser } from './commands/edit.js';
 import { listCommand } from './commands/list.js';
 import { assignManagerByJobTitle } from './commands/assign-manager.js';
 import { fixJobTitles, fixOrgChart } from './commands/fix.js';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
+import pkg from '../package.json' with { type: 'json' };
 
 // ---------------------------------------------------------------------------
 // Load config
 // ---------------------------------------------------------------------------
 
-function loadConfig(configPath) {
+async function loadConfig(configPath) {
   const fullPath = resolve(configPath);
-  if (!existsSync(fullPath)) {
+  try {
+    await access(fullPath);
+  } catch {
     console.error(chalk.red(`Config file not found: ${fullPath}`));
     console.error(chalk.gray('  Create a config.json with tenantId and clientId.'));
-    console.error(chalk.gray('  See config.json in the project root for a template.'));
+    console.error(chalk.gray('  See config.example.json in the project root for a template.'));
     process.exit(1);
   }
   try {
-    const config = JSON.parse(readFileSync(fullPath, 'utf8'));
+    const config = JSON.parse(await readFile(fullPath, 'utf8'));
     if (!config.tenantId || config.tenantId === 'YOUR_TENANT_ID') {
       console.error(chalk.red('config.json: tenantId is not configured.'));
       process.exit(1);
@@ -67,13 +67,11 @@ function handleError(err) {
 // CLI Definition
 // ---------------------------------------------------------------------------
 
-const pkg = JSON.parse(readFileSync(resolve(__dirname, '../package.json'), 'utf8'));
-
 program
   .name('m365-users')
   .description('Microsoft 365 user management CLI via Graph API')
   .version(pkg.version)
-  .option('-c, --config <path>', 'Path to config.json', resolve(__dirname, '../config.json'));
+  .option('-c, --config <path>', 'Path to config.json', resolve(import.meta.dirname, '../config.json'));
 
 // ---------------------------------------------------------------------------
 // login command
@@ -84,7 +82,7 @@ program
   .description('Authenticate against Microsoft 365 (Device Code Flow). Only needed once.')
   .action(async () => {
     const opts = program.opts();
-    const config = loadConfig(opts.config);
+    const config = await loadConfig(opts.config);
     initAuth(config);
     try {
       await login();
@@ -117,7 +115,7 @@ program
   )
   .action(async (csvFile, options) => {
     const opts = program.opts();
-    const config = loadConfig(opts.config);
+    const config = await loadConfig(opts.config);
     initAuth(config);
     try {
       await importUsers(resolve(csvFile), options);
@@ -136,7 +134,7 @@ program
   .option('-e, --edit', 'Open the editor immediately after selecting a user')
   .action(async (query, options) => {
     const opts = program.opts();
-    const config = loadConfig(opts.config);
+    const config = await loadConfig(opts.config);
     initAuth(config);
     try {
       await searchCommand(normalizeUpn(query, getDomain()), options);
@@ -159,7 +157,7 @@ program
   .option('-e, --edit', 'Select a user from the list to edit interactively')
   .action(async (options) => {
     const opts = program.opts();
-    const config = loadConfig(opts.config);
+    const config = await loadConfig(opts.config);
     initAuth(config);
     try {
       await listCommand({
@@ -186,7 +184,7 @@ program
   )
   .action(async () => {
     const opts = program.opts();
-    const config = loadConfig(opts.config);
+    const config = await loadConfig(opts.config);
     initAuth(config);
     try {
       await assignManagerByJobTitle();
@@ -204,7 +202,7 @@ program
   .description('Interactively edit a user by their UPN (email) or Azure AD object ID.')
   .action(async (upnOrId) => {
     const opts = program.opts();
-    const config = loadConfig(opts.config);
+    const config = await loadConfig(opts.config);
     initAuth(config);
     try {
       await editUser(normalizeUpn(upnOrId, getDomain()));
@@ -223,7 +221,7 @@ program
   .argument('<upnOrId>', 'User UPN or object ID')
   .action(async (upnOrId) => {
     const opts = program.opts();
-    const config = loadConfig(opts.config);
+    const config = await loadConfig(opts.config);
     initAuth(config);
     const { getUser, getManager } = await import('./graph.js');
     const { printUserCard } = await import('./commands/search.js');
@@ -254,7 +252,7 @@ fixCmd
   .description('Normalise all job titles to Sentence case (first letter uppercase, rest lowercase).')
   .action(async () => {
     const opts = program.opts();
-    const config = loadConfig(opts.config);
+    const config = await loadConfig(opts.config);
     initAuth(config);
     try {
       await fixJobTitles();
@@ -271,7 +269,7 @@ fixCmd
   )
   .action(async () => {
     const opts = program.opts();
-    const config = loadConfig(opts.config);
+    const config = await loadConfig(opts.config);
     initAuth(config);
     try {
       await fixOrgChart();

@@ -3,6 +3,7 @@ import inquirer from 'inquirer';
 import { listAllUsers, updateUser, fetchManagerMap, setManager, getUser } from '../graph.js';
 import { getDomain } from '../auth.js';
 import { normalizeUpn } from '../utils/upn.js';
+import { stripAnsi } from '../utils/ansi.js';
 
 /**
  * Convert a string to Sentence case:
@@ -125,7 +126,7 @@ export async function fixJobTitles() {
     const settled = await Promise.allSettled(
       slice.map((u) => updateUser(u.id, { jobTitle: u.fixed }))
     );
-    settled.forEach((r, idx) => {
+    for (const [idx, r] of settled.entries()) {
       const u = slice[idx];
       if (r.status === 'fulfilled') {
         results.ok.push(u);
@@ -143,7 +144,7 @@ export async function fixJobTitles() {
           chalk.red(r.reason?.message || r.reason)
         );
       }
-    });
+    }
   }
 
   // Summary
@@ -192,7 +193,7 @@ function printPreviewTable(candidates) {
 }
 
 function pad(str, len) {
-  const plain = String(str).replace(/\x1B\[[0-9;]*m/g, '');
+  const plain = stripAnsi(str);
   if (plain.length >= len) return plain.slice(0, len - 1) + ' ';
   return str + ' '.repeat(len - plain.length);
 }

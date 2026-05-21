@@ -1,5 +1,5 @@
 import { parse } from 'csv-parse/sync';
-import { readFileSync } from 'fs';
+import { readFile } from 'node:fs/promises';
 
 // Required fields for creating a new user
 const REQUIRED_FIELDS = ['userPrincipalName', 'displayName', 'mailNickname', 'password'];
@@ -49,10 +49,10 @@ export const FIELD_MAP = {
 /**
  * Parse a CSV file and return array of validated row objects.
  * @param {string} filePath - Path to the CSV file
- * @returns {{ rows: Array, errors: Array }} Parsed rows and any validation errors
+ * @returns {Promise<{ rows: Array, errors: Array }>} Parsed rows and any validation errors
  */
-export function parseCSV(filePath) {
-  const content = readFileSync(filePath, 'utf8');
+export async function parseCSV(filePath) {
+  const content = await readFile(filePath, 'utf8');
 
   const records = parse(content, {
     columns: true,
@@ -64,7 +64,7 @@ export function parseCSV(filePath) {
   const rows = [];
   const errors = [];
 
-  records.forEach((record, index) => {
+  for (const [index, record] of records.entries()) {
     const rowNum = index + 2; // +2 because row 1 is header
     const rowErrors = [];
 
@@ -77,11 +77,11 @@ export function parseCSV(filePath) {
 
     if (rowErrors.length > 0) {
       errors.push({ row: rowNum, upn: record.userPrincipalName || '(unknown)', errors: rowErrors });
-      return;
+      continue;
     }
 
     rows.push(record);
-  });
+  }
 
   return { rows, errors };
 }

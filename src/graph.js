@@ -87,7 +87,8 @@ export async function searchUsers(query, limit = 25) {
     return result.value || [];
   } catch {
     // Fallback: filter by displayName or mail startsWith
-    const filter = `startsWith(displayName,'${query}') or startsWith(mail,'${query}') or startsWith(userPrincipalName,'${query}')`;
+    const safe = query.replace(/'/g, "''");  // OData single-quote escaping
+    const filter = `startsWith(displayName,'${safe}') or startsWith(mail,'${safe}') or startsWith(userPrincipalName,'${safe}')`;
     const result = await client
       .api('/users')
       .filter(filter)
@@ -193,9 +194,9 @@ export async function listAllUsers({ onlyDisabled = false, checkManager = false,
           .catch(() => null)
       )
     );
-    results.forEach((r, idx) => {
+    for (const [idx, r] of results.entries()) {
       slice[idx].manager = r.status === 'fulfilled' ? r.value : null;
-    });
+    }
     if (onProgress) onProgress(i + BATCH);
   }
 
@@ -385,6 +386,11 @@ export async function fetchManagerMap(users, onProgress) {
       },
       body: JSON.stringify({ requests }),
     });
+
+    if (!resp.ok) {
+      const errBody = await resp.json().catch(() => ({}));
+      throw new Error(`Graph $batch failed (${resp.status}): ${errBody?.error?.message || resp.statusText}`);
+    }
 
     const data = await resp.json();
 

@@ -3,6 +3,7 @@ import inquirer from 'inquirer';
 import { listAllUsers, getUser, updateUser, setManager as graphSetManager, getManager } from '../graph.js';
 import { editUser, editSection, FIELD_GROUPS } from './edit.js';
 import { printUserCard } from './search.js';
+import { stripAnsi } from '../utils/ansi.js';
 
 /**
  * List users in the tenant with optional filters.
@@ -148,11 +149,15 @@ async function editLoop(filtered, directSection) {
     const idx = filtered.findIndex((u) => (u.userPrincipalName || u.id) === selected);
     if (idx !== -1) {
       const fresh = await getUser(selected).catch(() => null);
+      const freshManager = await getManager(selected).catch(() => null);
       if (fresh) {
         filtered[idx] = {
           ...filtered[idx],
           jobTitle:   fresh.jobTitle,
           department: fresh.department,
+          manager:    freshManager
+            ? { upn: freshManager.userPrincipalName, name: freshManager.displayName }
+            : null,
         };
       }
     }
@@ -276,6 +281,3 @@ function pad(str, len) {
   return str + ' '.repeat(len - plain.length);
 }
 
-function stripAnsi(str) {
-  return String(str).replace(/\x1B\[[0-9;]*m/g, '');
-}

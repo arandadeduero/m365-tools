@@ -6,7 +6,7 @@ Herramienta de línea de comandos (CLI) para gestionar usuarios de Microsoft 365
 
 ## Requisitos previos
 
-- **Node.js 18.0.0 o superior**
+- **Node.js 24.0.0 o superior**
 - Una suscripción de Microsoft 365 con permisos de administrador
 - Un registro de aplicación en Azure Active Directory con los permisos delegados:
   - `User.ReadWrite.All`

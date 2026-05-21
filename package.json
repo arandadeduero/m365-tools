@@ -7,7 +7,31 @@
     "m365-users": "./src/index.js"
   },
   "scripts": {
-    "start": "node src/index.js"
+    "start": "node src/index.js",
+    "test": "ava",
+    "test:coverage": "c8 ava",
+    "postinstall": "node -e \"try{const fs=require('fs'),p='./node_modules/c8/node_modules/yargs/package.json';if(fs.existsSync(p)){const pkg=JSON.parse(fs.readFileSync(p,'utf8'));delete pkg.type;fs.writeFileSync(p,JSON.stringify(pkg,null,2));}}catch(e){}\""
+  },
+  "ava": {
+    "files": [
+      "test/**/*.test.js"
+    ],
+    "concurrency": 1,
+    "nodeArguments": [
+      "--experimental-vm-modules"
+    ]
+  },
+  "c8": {
+    "reporter": [
+      "text",
+      "lcov"
+    ],
+    "include": [
+      "src/**/*.js"
+    ],
+    "exclude": [
+      "test/**"
+    ]
   },
   "dependencies": {
     "@azure/identity": "^4.4.1",
@@ -18,6 +42,10 @@
     "inquirer": "^9.3.7"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=24.0.0"
+  },
+  "devDependencies": {
+    "ava": "^8.0.1",
+    "c8": "^10.1.3"
   }
 }
