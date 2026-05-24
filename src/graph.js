@@ -1,5 +1,15 @@
 import { Client } from '@microsoft/microsoft-graph-client';
 import { getAccessToken } from './auth.js';
+import {
+  getCachedUser, setCachedUser, invalidateUser,
+  getCachedManager, setCachedManager, invalidateManager,
+  getCachedUserGroups, setCachedUserGroups, invalidateUserGroups,
+  getCachedAllGroups, setCachedAllGroups,
+  getCachedDepartments, setCachedDepartments,
+  getCachedJobTitles, setCachedJobTitles,
+  seedUsers, seedGroupsMap,
+  setGroupName,
+} from './utils/cache.js';
 
 /**
  * Build an authenticated Graph API client using the cached token.
@@ -37,9 +47,12 @@ export async function createUser(userData) {
  * @returns {object|null} User object or null if not found
  */
 export async function getUser(identifier) {
+  const cached = getCachedUser(identifier);
+  if (cached) return cached;
+
   const client = buildClient();
   try {
-    return await client
+    const user = await client
       .api(`/users/${encodeURIComponent(identifier)}`)
       .select([
         'id', 'userPrincipalName', 'displayName', 'givenName', 'surname',
@@ -50,6 +63,8 @@ export async function getUser(identifier) {
         'preferredLanguage', 'userType',
       ])
       .get();
+    setCachedUser(user);
+    return user;
   } catch (err) {
     if (err.statusCode === 404) return null;
     throw err;
@@ -63,7 +78,39 @@ export async function getUser(identifier) {
  */
 export async function updateUser(identifier, updates) {
   const client = buildClient();
-  return client.api(`/users/${encodeURIComponent(identifier)}`).patch(updates);
+  const result = await client.api(`/users/${encodeURIComponent(identifier)}`).patch(updates);
+  invalidateUser(identifier);
+  return result;
+}
+
+/**
+ * Get all licences currently assigned to a user.
+ * @param {string} identifier - UPN or object ID
+ * @returns {Promise<Array<{skuId: string, skuPartNumber: string}>>}
+ */
+export async function getUserLicenses(identifier) {
+  const client = buildClient();
+  const result = await client
+    .api(`/users/${encodeURIComponent(identifier)}/licenseDetails`)
+    .select(['skuId', 'skuPartNumber'])
+    .get();
+  return result.value ?? [];
+}
+
+/**
+ * Remove all licences from a user. No-op if the user has none.
+ * @param {string} identifier   - UPN or object ID
+ * @param {Array}  [licenses]   - Optional pre-fetched license list (skips extra API call)
+ * @returns {Promise<void>}
+ */
+export async function removeAllLicenses(identifier, licenses) {
+  const list = licenses ?? await getUserLicenses(identifier);
+  if (list.length === 0) return;
+  const client = buildClient();
+  await client.api(`/users/${encodeURIComponent(identifier)}/assignLicense`).post({
+    addLicenses: [],
+    removeLicenses: list.map((l) => l.skuId),
+  });
 }
 
 /**
@@ -104,17 +151,26 @@ export async function searchUsers(query, limit = 25) {
  * @param {string} userId - UPN or object ID of the user
  * @param {string} managerUpn - UPN of the manager
  */
-export async function setManager(userId, managerUpn) {
-  // First resolve manager to their object ID
-  const manager = await getUser(managerUpn);
-  if (!manager) {
-    throw new Error(`Manager not found: ${managerUpn}`);
+/**
+ * Set or update the manager for a user.
+ * @param {string} userId      - UPN or object ID of the user
+ * @param {string} managerUpn  - UPN of the manager
+ * @param {string} [managerId] - Optional pre-resolved object ID; skips getUser() lookup when provided
+ */
+export async function setManager(userId, managerUpn, managerId) {
+  // Resolve manager object ID — use cache or the optional pre-resolved value first
+  let resolvedId = managerId;
+  if (!resolvedId) {
+    const manager = await getUser(managerUpn);
+    if (!manager) throw new Error(`Manager not found: ${managerUpn}`);
+    resolvedId = manager.id;
   }
 
   const client = buildClient();
   await client.api(`/users/${encodeURIComponent(userId)}/manager/$ref`).put({
-    '@odata.id': `https://graph.microsoft.com/v1.0/users/${manager.id}`,
+    '@odata.id': `https://graph.microsoft.com/v1.0/users/${resolvedId}`,
   });
+  invalidateManager(userId);
 }
 
 /**
@@ -123,14 +179,22 @@ export async function setManager(userId, managerUpn) {
  * @returns {object|null} Manager user object or null
  */
 export async function getManager(userId) {
+  const { hit, value } = getCachedManager(userId);
+  if (hit) return value;
+
   const client = buildClient();
   try {
-    return await client
+    const manager = await client
       .api(`/users/${encodeURIComponent(userId)}/manager`)
       .select(['id', 'displayName', 'userPrincipalName', 'jobTitle'])
       .get();
+    setCachedManager(userId, manager);
+    return manager;
   } catch (err) {
-    if (err.statusCode === 404) return null;
+    if (err.statusCode === 404) {
+      setCachedManager(userId, null);
+      return null;
+    }
     throw err;
   }
 }
@@ -149,7 +213,7 @@ export async function listAllUsers({ onlyDisabled = false, checkManager = false,
   const select = [
     'id', 'userPrincipalName', 'displayName', 'givenName', 'surname',
     'mail', 'jobTitle', 'department', 'companyName', 'officeLocation',
-    'accountEnabled', 'userType',
+    'accountEnabled', 'userType', 'employeeId', 'employeeType',
   ];
 
   // Filter server-side: active/disabled + exclude external guest users (#EXT#)
@@ -178,7 +242,10 @@ export async function listAllUsers({ onlyDisabled = false, checkManager = false,
     nextLink = result['@odata.nextLink'] || null;
   } while (nextLink);
 
-  if (!checkManager) return users;
+  if (!checkManager) {
+    seedUsers(users);
+    return users;
+  }
 
   // Fetch manager UPN for all users in parallel batches of 20
   const BATCH = 20;
@@ -200,6 +267,7 @@ export async function listAllUsers({ onlyDisabled = false, checkManager = false,
     if (onProgress) onProgress(i + BATCH);
   }
 
+  seedUsers(users);
   return users;
 }
 
@@ -209,6 +277,9 @@ export async function listAllUsers({ onlyDisabled = false, checkManager = false,
  * @returns {object|null} User with id and displayName, or null
  */
 export async function findUserByUpn(upn) {
+  const cached = getCachedUser(upn);
+  if (cached) return cached;
+
   const client = buildClient();
   try {
     const result = await client
@@ -216,7 +287,9 @@ export async function findUserByUpn(upn) {
       .filter(`userPrincipalName eq '${upn}'`)
       .select(['id', 'userPrincipalName', 'displayName'])
       .get();
-    return result.value && result.value.length > 0 ? result.value[0] : null;
+    const user = result.value && result.value.length > 0 ? result.value[0] : null;
+    if (user) setCachedUser(user);
+    return user;
   } catch {
     return null;
   }
@@ -227,6 +300,9 @@ export async function findUserByUpn(upn) {
  * @returns {string[]} Sorted unique departments
  */
 export async function listAllDepartments() {
+  const cached = getCachedDepartments();
+  if (cached) return cached;
+
   const client = buildClient();
   const depts = new Set();
 
@@ -252,7 +328,9 @@ export async function listAllDepartments() {
     nextLink = result['@odata.nextLink'] || null;
   } while (nextLink);
 
-  return [...depts].sort((a, b) => a.localeCompare(b));
+  const sorted = [...depts].sort((a, b) => a.localeCompare(b));
+  setCachedDepartments(sorted);
+  return sorted;
 }
 
 /**
@@ -292,6 +370,9 @@ export async function getUsersByDepartment(department) {
  * @returns {string[]} Sorted unique job titles
  */
 export async function listAllJobTitles() {
+  const cached = getCachedJobTitles();
+  if (cached) return cached;
+
   const client = buildClient();
   const select = ['jobTitle'];
   const titles = new Set();
@@ -319,7 +400,9 @@ export async function listAllJobTitles() {
     nextLink = result['@odata.nextLink'] || null;
   } while (nextLink);
 
-  return [...titles].sort((a, b) => a.localeCompare(b));
+  const sortedTitles = [...titles].sort((a, b) => a.localeCompare(b));
+  setCachedJobTitles(sortedTitles);
+  return sortedTitles;
 }
 
 /**
@@ -409,5 +492,170 @@ export async function fetchManagerMap(users, onProgress) {
     if (onProgress) onProgress(Math.min(i + BATCH, users.length), users.length);
   }
 
+  return map;
+}
+
+// ---------------------------------------------------------------------------
+// Group membership
+// ---------------------------------------------------------------------------
+
+/**
+ * Search groups by display name prefix.
+ * @param {string} query
+ * @returns {Promise<Array<{id: string, displayName: string}>>}
+ */
+export async function searchGroups(query) {
+  const client = buildClient();
+  const safe = query.replace(/'/g, "''");
+  const result = await client
+    .api('/groups')
+    .filter(`startsWith(displayName,'${safe}')`)
+    .select(['id', 'displayName'])
+    .top(25)
+    .get();
+  return result.value ?? [];
+}
+
+/**
+ * Add a user to a group.
+ * Silently succeeds if the user is already a member (409 Conflict).
+ * @param {string} groupId
+ * @param {string} userId
+ */
+export async function addMemberToGroup(groupId, userId) {
+  const client = buildClient();
+  try {
+    await client.api(`/groups/${groupId}/members/$ref`).post({
+      '@odata.id': `https://graph.microsoft.com/v1.0/directoryObjects/${userId}`,
+    });
+  } catch (err) {
+    // 409 = already a member — treat as success
+    if (err.statusCode === 409) return;
+    throw err;
+  }
+  invalidateUserGroups(userId);
+}
+
+/**
+ * Remove a user from a group.
+ * Silently succeeds if the user is not a member (404).
+ * @param {string} groupId
+ * @param {string} userId
+ */
+export async function removeMemberFromGroup(groupId, userId) {
+  const client = buildClient();
+  try {
+    await client.api(`/groups/${groupId}/members/${userId}/$ref`).delete();
+  } catch (err) {
+    if (err.statusCode === 404) return;
+    throw err;
+  }
+  invalidateUserGroups(userId);
+}
+
+/**
+ * List all groups in the tenant (paginated).
+ * @returns {Promise<Array<{id: string, displayName: string}>>}
+ */
+export async function listAllGroups() {
+  const cached = getCachedAllGroups();
+  if (cached) return cached;
+
+  const client = buildClient();
+  const groups = [];
+  let url = '/groups?$select=id,displayName&$top=100&$orderby=displayName';
+
+  while (url) {
+    const page = await client.api(url).get();
+    groups.push(...(page.value ?? []));
+    url = page['@odata.nextLink'] ?? null;
+  }
+
+  const sorted = groups.sort((a, b) => a.displayName.localeCompare(b.displayName, 'es'));
+  setCachedAllGroups(sorted);
+  return sorted;
+}
+
+/**
+ * Get all groups a user is a direct member of.
+ * Returns only security groups and Microsoft 365 groups (not roles).
+ * @param {string} identifier - UPN or object ID
+ * @returns {Promise<Array<{id: string, displayName: string}>>}
+ */
+export async function getUserGroups(identifier) {
+  // For cache lookup we need the user ID; if the caller passes a UPN we do a
+  // best-effort lookup from the user cache first before falling back to the API.
+  const cachedUser = getCachedUser(identifier);
+  const userId = cachedUser?.id ?? identifier;
+
+  const cached = getCachedUserGroups(userId);
+  if (cached) return cached;
+
+  const client = buildClient();
+  const groups = [];
+  let url = `/users/${encodeURIComponent(identifier)}/memberOf/microsoft.graph.group?$select=id,displayName&$top=100`;
+
+  while (url) {
+    const page = await client.api(url).get();
+    groups.push(...(page.value ?? []));
+    url = page['@odata.nextLink'] ?? null;
+  }
+
+  setCachedUserGroups(userId, groups);
+  return groups;
+}
+
+/**
+ * Fetch group memberships for a list of users using Graph $batch (20 per batch).
+ * Returns a Map<userId, Array<{id, displayName}>>
+ * @param {Array<{id: string}>} users
+ * @param {function} [onProgress]
+ */
+export async function fetchGroupsMap(users, onProgress) {
+  const token = await getAccessToken();
+  const BATCH = 20;
+  const map = new Map();
+
+  for (let i = 0; i < users.length; i += BATCH) {
+    const slice = users.slice(i, i + BATCH);
+
+    const requests = slice.map((u, idx) => ({
+      id: String(idx),
+      method: 'GET',
+      url: `/users/${encodeURIComponent(u.id)}/memberOf/microsoft.graph.group?$select=id,displayName&$top=100`,
+    }));
+
+    const resp = await fetch('https://graph.microsoft.com/v1.0/$batch', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ requests }),
+    });
+
+    if (!resp.ok) {
+      const errBody = await resp.json().catch(() => ({}));
+      throw new Error(`Graph $batch failed (${resp.status}): ${errBody?.error?.message || resp.statusText}`);
+    }
+
+    const data = await resp.json();
+
+    for (const res of data.responses ?? []) {
+      const idx = parseInt(res.id, 10);
+      const userId = slice[idx]?.id;
+      if (!userId) continue;
+
+      if (res.status === 200) {
+        map.set(userId, res.body?.value ?? []);
+      } else {
+        map.set(userId, []);
+      }
+    }
+
+    if (onProgress) onProgress(Math.min(i + BATCH, users.length), users.length);
+  }
+
+  seedGroupsMap(map);
   return map;
 }

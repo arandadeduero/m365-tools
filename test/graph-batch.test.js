@@ -3,21 +3,17 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-// This file runs in its own AVA worker. We set HOME before any module import
-// so token-store uses our isolated directory, preventing cross-test contamination.
 const tmpHome = await mkdtemp(join(tmpdir(), 'm365-batch-test-'));
 process.env.HOME = tmpHome;
 
-const { saveToken, clearToken, _resetKeyCache } = await import('../src/utils/token-store.js');
-const { initAuth } = await import('../src/auth.js');
+const { initAuth, _setFakeToken, _clearFakeToken } = await import('../src/auth.js');
 
-test.beforeEach(async () => {
-  _resetKeyCache();
-  await clearToken();
+test.before(() => {
   initAuth({ tenantId: 'test-t', clientId: 'test-c', scopes: [] });
 });
 
 test.after.always(async () => {
+  _clearFakeToken();
   await rm(tmpHome, { recursive: true, force: true });
 });
 
@@ -25,7 +21,7 @@ test.serial('fetchManagerMap: throws with correct message for non-OK HTTP respon
   const originalFetch = globalThis.fetch;
 
   // --- 401 scenario ---
-  await saveToken({ accessToken: 'fake-token', expiresAt: Date.now() + 3600_000 });
+  _setFakeToken('fake-token');
   globalThis.fetch = async () => ({
     ok:         false,
     status:     401,
@@ -39,11 +35,11 @@ test.serial('fetchManagerMap: throws with correct message for non-OK HTTP respon
     t.true(err401.message.includes('Access token is missing or invalid.'), err401.message);
   } finally {
     globalThis.fetch = originalFetch;
+    _clearFakeToken();
   }
 
   // --- 503 scenario ---
-  _resetKeyCache();
-  await saveToken({ accessToken: 'fake-token-2', expiresAt: Date.now() + 3600_000 });
+  _setFakeToken('fake-token-2');
   globalThis.fetch = async () => ({
     ok:         false,
     status:     503,
@@ -57,5 +53,6 @@ test.serial('fetchManagerMap: throws with correct message for non-OK HTTP respon
     t.true(err503.message.includes('Service Unavailable'), err503.message);
   } finally {
     globalThis.fetch = originalFetch;
+    _clearFakeToken();
   }
 });

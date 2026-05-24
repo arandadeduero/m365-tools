@@ -1,9 +1,10 @@
 import chalk from 'chalk';
 import inquirer from 'inquirer';
-import { listAllUsers, getUser, updateUser, setManager as graphSetManager, getManager } from '../graph.js';
+import { listAllUsers, getUser, updateUser, setManager as graphSetManager, getManager, fetchGroupsMap } from '../graph.js';
 import { editUser, editSection, FIELD_GROUPS } from './edit.js';
 import { printUserCard } from './search.js';
 import { stripAnsi } from '../utils/ansi.js';
+import { getGroupName, filterAutoGroups } from '../utils/cache.js';
 
 /**
  * List users in the tenant with optional filters.
@@ -37,6 +38,26 @@ export async function listCommand(options = {}) {
   });
 
   process.stdout.write('\r' + ' '.repeat(50) + '\r');
+
+  // Fetch group memberships for all users in one $batch pass.
+  // Results are cached in _groupNameCache (groupId → displayName) so re-running
+  // the command in the same process never re-fetches the same group name.
+  process.stdout.write(chalk.gray('  Fetching group memberships...\r'));
+  lastPrint = 0;
+  const groupsMap = await fetchGroupsMap(users, (done, total) => {
+    if (done - lastPrint >= 50) {
+      process.stdout.write(chalk.gray(`\r  Fetching groups: ${done}/${total}...`));
+      lastPrint = done;
+    }
+  });
+  process.stdout.write('\r' + ' '.repeat(60) + '\r');
+
+  // Populate group name cache and attach groups array to each user,
+  // filtering out auto-assigned noise groups (Todos los usuarios, etc.)
+  for (const user of users) {
+    const groups = filterAutoGroups(groupsMap.get(user.id) ?? []);
+    user.groups = groups.map((g) => getGroupName(g.id) ?? g.displayName);
+  }
 
   // Client-side filters
   let filtered = users;
@@ -231,15 +252,17 @@ async function quickEditSection(identifier, sectionName) {
 }
 
 /**
- * Print users as a formatted table including the manager column.
+ * Print users as a formatted table including employee ID, manager, and groups.
  */
 function printUserTable(users) {
   const COL = {
-    upn:     46,
-    name:    32,
-    title:   28,
-    dept:    24,
-    manager: 46,
+    empId:   10,
+    upn:     38,
+    name:    28,
+    title:   24,
+    dept:    20,
+    manager: 36,
+    groups:  40,
   };
 
   const totalWidth = Object.values(COL).reduce((a, b) => a + b, 0) + Object.keys(COL).length - 1;
@@ -247,27 +270,35 @@ function printUserTable(users) {
 
   console.log(hr);
   console.log(
+    chalk.bold(pad('Emp ID',       COL.empId))   + ' ' +
     chalk.bold(pad('UPN / Email',  COL.upn))     + ' ' +
     chalk.bold(pad('Display Name', COL.name))    + ' ' +
     chalk.bold(pad('Job Title',    COL.title))   + ' ' +
     chalk.bold(pad('Department',   COL.dept))    + ' ' +
-    chalk.bold(pad('Manager',      COL.manager))
+    chalk.bold(pad('Manager',      COL.manager)) + ' ' +
+    chalk.bold(pad('Groups',       COL.groups))
   );
   console.log(hr);
 
   for (const u of users) {
-    const titleLabel   = u.jobTitle   || chalk.red('(none)');
-    const deptLabel    = u.department || chalk.red('(none)');
+    const empIdLabel   = u.employeeId  || chalk.gray('—');
+    const titleLabel   = u.jobTitle    || chalk.red('(none)');
+    const deptLabel    = u.department  || chalk.red('(none)');
     const managerLabel = u.manager
       ? (u.manager.upn || u.manager.name || chalk.gray('—'))
       : chalk.red('(none)');
+    const groupsLabel  = u.groups && u.groups.length > 0
+      ? u.groups.join(', ')
+      : chalk.gray('—');
 
     console.log(
-      pad(u.userPrincipalName || u.mail || u.id, COL.upn)  + ' ' +
-      pad(u.displayName || '',                   COL.name)  + ' ' +
-      pad(titleLabel,                            COL.title) + ' ' +
-      pad(deptLabel,                             COL.dept)  + ' ' +
-      pad(managerLabel,                          COL.manager)
+      pad(empIdLabel,                            COL.empId)   + ' ' +
+      pad(u.userPrincipalName || u.mail || u.id, COL.upn)     + ' ' +
+      pad(u.displayName || '',                   COL.name)    + ' ' +
+      pad(titleLabel,                            COL.title)   + ' ' +
+      pad(deptLabel,                             COL.dept)    + ' ' +
+      pad(managerLabel,                          COL.manager) + ' ' +
+      pad(groupsLabel,                           COL.groups)
     );
   }
 

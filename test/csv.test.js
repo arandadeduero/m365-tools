@@ -171,3 +171,22 @@ test('stripPasswordFromPayload: returns object unchanged if no passwordProfile',
   const result = stripPasswordFromPayload(payload);
   t.deepEqual(result, payload);
 });
+
+// ---------------------------------------------------------------------------
+// parseCSV edge cases
+// ---------------------------------------------------------------------------
+
+test('parseCSV: header-only CSV returns zero rows and zero errors', async (t) => {
+  const path = await writeCsv('header-only.csv', `${VALID_HEADER}\n`);
+  const { rows, errors } = await parseCSV(path);
+  t.is(rows.length, 0);
+  t.is(errors.length, 0);
+});
+
+test('parseCSV: whitespace-only userPrincipalName is treated as missing', async (t) => {
+  const path = await writeCsv('whitespace-upn.csv', `${VALID_HEADER}\n   ,John Doe,jdoe,TempPass1!\n`);
+  const { rows, errors } = await parseCSV(path);
+  t.is(rows.length, 0);
+  t.is(errors.length, 1);
+  t.true(errors[0].errors[0].includes('userPrincipalName'));
+});

@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 import inquirer from 'inquirer';
-import { getUser, updateUser, setManager, getManager, findUserByUpn } from '../graph.js';
+import { getUser, updateUser, setManager, getManager, findUserByUpn, getUserGroups, listAllGroups, addMemberToGroup, removeMemberFromGroup } from '../graph.js';
 import { printUserCard } from './search.js';
 import { getDomain } from '../auth.js';
 import { normalizeUpn } from '../utils/upn.js';
@@ -70,6 +70,12 @@ export const FIELD_GROUPS = [
       { name: 'newPassword', message: 'New Password (leave blank to skip)', type: 'password', isPassword: true },
     ],
   },
+  {
+    name: 'Groups',
+    fields: [
+      { name: 'groups', message: 'Group memberships', type: 'checkbox', isGroups: true },
+    ],
+  },
 ];
 
 /**
@@ -99,10 +105,11 @@ export async function editUser(identifier) {
   const pendingChanges = {};
   let pendingManager = null;
   let pendingPassword = null;
+  let pendingGroups = null; // { toAdd: [{id,displayName}], toRemove: [{id,displayName}] }
 
   // Interactive edit loop
   while (true) {
-    showPendingChanges(pendingChanges, pendingManager, pendingPassword);
+    showPendingChanges(pendingChanges, pendingManager, pendingPassword, pendingGroups);
 
     const { section } = await inquirer.prompt([
       {
@@ -124,11 +131,11 @@ export async function editUser(identifier) {
     }
 
     const group = FIELD_GROUPS.find((g) => g.name === section);
-    await editSection(group, user, currentManager, pendingChanges, (m) => { pendingManager = m; }, (p) => { pendingPassword = p; });
+    await editSection(group, user, currentManager, pendingChanges, (m) => { pendingManager = m; }, (p) => { pendingPassword = p; }, (g) => { pendingGroups = g; }, identifier);
   }
 
   // Apply changes
-  if (Object.keys(pendingChanges).length === 0 && pendingManager === null && pendingPassword === null) {
+  if (Object.keys(pendingChanges).length === 0 && pendingManager === null && pendingPassword === null && pendingGroups === null) {
     console.log(chalk.yellow('\nNo changes to save.\n'));
     return;
   }
@@ -137,7 +144,7 @@ export async function editUser(identifier) {
     {
       type: 'confirm',
       name: 'confirm',
-      message: `Apply ${Object.keys(pendingChanges).length + (pendingManager ? 1 : 0) + (pendingPassword ? 1 : 0)} change(s) to ${user.displayName}?`,
+      message: `Apply ${Object.keys(pendingChanges).length + (pendingManager ? 1 : 0) + (pendingPassword ? 1 : 0) + (pendingGroups ? pendingGroups.toAdd.length + pendingGroups.toRemove.length : 0)} change(s) to ${user.displayName}?`,
       default: true,
     },
   ]);
@@ -183,13 +190,79 @@ export async function editUser(identifier) {
     }
   }
 
+  // Apply group changes
+  if (pendingGroups !== null && (pendingGroups.toAdd.length > 0 || pendingGroups.toRemove.length > 0)) {
+    await applyGroupChanges(user.id, pendingGroups);
+  }
+
   console.log(chalk.cyan('\nDone.\n'));
+}
+
+/**
+ * Apply pending group changes (add/remove) for a user.
+ * @param {string} userId - Azure AD object ID (not UPN)
+ */
+async function applyGroupChanges(userId, pendingGroups) {
+  for (const g of pendingGroups.toAdd) {
+    try {
+      await addMemberToGroup(g.id, userId);
+      console.log(chalk.green(`  Added to group:     ${g.displayName}`));
+    } catch (err) {
+      console.log(chalk.red(`  Failed to add to ${g.displayName}: ${err.message}`));
+    }
+  }
+  for (const g of pendingGroups.toRemove) {
+    try {
+      await removeMemberFromGroup(g.id, userId);
+      console.log(chalk.green(`  Removed from group: ${g.displayName}`));
+    } catch (err) {
+      console.log(chalk.red(`  Failed to remove from ${g.displayName}: ${err.message}`));
+    }
+  }
 }
 
 /**
  * Edit a specific section of user properties.
  */
-export async function editSection(group, user, currentManager, pendingChanges, setManager_, setPassword) {
+export async function editSection(group, user, currentManager, pendingChanges, setManager_, setPassword, setGroups, identifier) {
+  // ── Groups section — special interactive checkbox flow ──────────────────
+  if (group.fields.some((f) => f.isGroups)) {
+    console.log(chalk.gray('\nFetching all groups and current memberships…'));
+
+    const [allGroups, currentMemberships] = await Promise.all([
+      listAllGroups(),
+      getUserGroups(user.id),
+    ]);
+
+    const currentIds = new Set(currentMemberships.map((g) => g.id));
+
+    const { selected } = await inquirer.prompt([{
+      type: 'checkbox',
+      name: 'selected',
+      message: 'Select groups (space to toggle, enter to confirm):',
+      choices: allGroups.map((g) => ({
+        name: currentIds.has(g.id)
+          ? `${g.displayName}  ${chalk.green('(miembro)')}`
+          : g.displayName,
+        value: g.id,
+        checked: currentIds.has(g.id),
+      })),
+      pageSize: 20,
+    }]);
+
+    const selectedIds = new Set(selected);
+
+    const toAdd    = allGroups.filter((g) => selectedIds.has(g.id) && !currentIds.has(g.id));
+    const toRemove = allGroups.filter((g) => !selectedIds.has(g.id) && currentIds.has(g.id));
+
+    if (toAdd.length === 0 && toRemove.length === 0) {
+      console.log(chalk.gray('No group changes.'));
+      setGroups(null);
+    } else {
+      setGroups({ toAdd, toRemove });
+    }
+    return;
+  }
   const questions = group.fields.map((field) => {
     const current = getCurrentValue(field, user, currentManager);
     const defaultVal = current !== null && current !== undefined ? String(current) : '';
@@ -298,8 +371,9 @@ function getCurrentValue(field, user, currentManager) {
   return user[field.name] !== undefined ? user[field.name] : '';
 }
 
-function showPendingChanges(pendingChanges, pendingManager, pendingPassword) {
-  const count = Object.keys(pendingChanges).length + (pendingManager !== null ? 1 : 0) + (pendingPassword ? 1 : 0);
+function showPendingChanges(pendingChanges, pendingManager, pendingPassword, pendingGroups) {
+  const groupCount = pendingGroups ? pendingGroups.toAdd.length + pendingGroups.toRemove.length : 0;
+  const count = Object.keys(pendingChanges).length + (pendingManager !== null ? 1 : 0) + (pendingPassword ? 1 : 0) + groupCount;
   if (count === 0) return;
 
   console.log(chalk.yellow(`\n  Pending changes (${count}):`));
@@ -317,6 +391,14 @@ function showPendingChanges(pendingChanges, pendingManager, pendingPassword) {
   }
   if (pendingPassword) {
     console.log(chalk.yellow(`    password: (new password set)`));
+  }
+  if (pendingGroups) {
+    for (const g of pendingGroups.toAdd) {
+      console.log(chalk.green(`    + group: ${g.displayName}`));
+    }
+    for (const g of pendingGroups.toRemove) {
+      console.log(chalk.red(`    - group: ${g.displayName}`));
+    }
   }
   console.log();
 }

@@ -32,3 +32,6 @@ npm-debug.log*
 # User-supplied CSV data files (keep only the sample)
 *.csv
 !sample.csv
+
+# Private CSV data
+real-csv/

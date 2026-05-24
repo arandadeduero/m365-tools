@@ -149,7 +149,7 @@ export async function assignManagerByJobTitle() {
   for (let i = 0; i < users.length; i += BATCH) {
     const slice = users.slice(i, i + BATCH);
     const settled = await Promise.allSettled(
-      slice.map((u) => setManager(u.id, manager.userPrincipalName))
+      slice.map((u) => setManager(u.id, manager.userPrincipalName, manager.id))
     );
     settled.forEach((r, idx) => {
       const u = slice[idx];

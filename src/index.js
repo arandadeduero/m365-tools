@@ -12,6 +12,10 @@ import { editUser } from './commands/edit.js';
 import { listCommand } from './commands/list.js';
 import { assignManagerByJobTitle } from './commands/assign-manager.js';
 import { fixJobTitles, fixOrgChart } from './commands/fix.js';
+import { validateCommand } from './commands/validate.js';
+import { syncCheckCommand } from './commands/sync-check.js';
+import { validateUsersCommand } from './commands/validate-users.js';
+import { syncEmployeeIdsCommand } from './commands/sync-employee-ids.js';
 import pkg from '../package.json' with { type: 'json' };
 
 // ---------------------------------------------------------------------------
@@ -273,6 +277,97 @@ fixCmd
     initAuth(config);
     try {
       await fixOrgChart();
+    } catch (err) {
+      handleError(err);
+    }
+  });
+
+// ---------------------------------------------------------------------------
+// validate-users command
+// ---------------------------------------------------------------------------
+
+program
+  .command('validate-users')
+  .description(
+    'Lista todos los usuarios de Microsoft 365 con sus grupos asignados.\n' +
+    '  Muestra nombre, UPN, estado (activo/desactivado) y grupos de cada usuario.'
+  )
+  .option('--empty-groups', 'Mostrar solo los usuarios que no pertenecen a ningún grupo')
+  .option('--fix-groups-by-manager', 'Interactivo: elige un manager, luego un grupo, y añade todos sus subordinados a ese grupo')
+  .action(async (options) => {
+    const opts = program.opts();
+    const config = await loadConfig(opts.config);
+    initAuth(config);
+    try {
+      await validateUsersCommand({
+        empty: !!options.emptyGroups,
+        fixGroupsByManager: !!options.fixGroupsByManager,
+      });
+    } catch (err) {
+      handleError(err);
+    }
+  });
+
+// ---------------------------------------------------------------------------
+// sync-check command
+// ---------------------------------------------------------------------------
+
+program
+  .command('sync-check')
+  .description(
+    'Cross-reference the employee Excel file (real-csv/) with Microsoft 365 and report sync issues.\n' +
+    '  Check 1: Active employees (@arandadeduero.es, no Fecha de Baja) must have an M365 account.\n' +
+    '  Check 2: Employees with a Fecha de Baja must have their cloud account disabled.\n' +
+    '  Use --disable-left-workers to disable and unlicense Check 2 accounts (with double confirmation).'
+  )
+  .option('--disable-left-workers', 'Disable and remove licences from accounts that should be disabled (Check 2)')
+  .action(async (options) => {
+    const opts = program.opts();
+    const config = await loadConfig(opts.config);
+    initAuth(config);
+    try {
+      await syncCheckCommand({ fix: !!options.disableLeftWorkers });
+    } catch (err) {
+      handleError(err);
+    }
+  });
+
+// ---------------------------------------------------------------------------
+// sync-employee-ids command
+// ---------------------------------------------------------------------------
+
+program
+  .command('sync-employee-ids')
+  .description(
+    'Lee id_empleado del Excel (real-csv/) y lo escribe en el campo employeeId de cada usuario en M365.\n' +
+    '  El Excel es la fuente de verdad: siempre sobreescribe el valor en la nube.\n' +
+    '  La coincidencia se hace por email (e_mail → userPrincipalName).'
+  )
+  .action(async () => {
+    const opts = program.opts();
+    const config = await loadConfig(opts.config);
+    initAuth(config);
+    try {
+      await syncEmployeeIdsCommand();
+    } catch (err) {
+      handleError(err);
+    }
+  });
+
+// ---------------------------------------------------------------------------
+// validate command
+// ---------------------------------------------------------------------------
+
+program
+  .command('validate')
+  .description(
+    'Validate the employee Excel file in real-csv/ against a set of data quality rules.\n' +
+    '  Checks: id_empleado (required, unique), e_mail (required, correct domain),\n' +
+    '          id_responsable (must reference a known id_empleado).'
+  )
+  .action(async () => {
+    try {
+      await validateCommand();
     } catch (err) {
       handleError(err);
     }
