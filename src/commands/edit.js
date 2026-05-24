@@ -113,7 +113,7 @@ export async function editUser(identifier) {
 
     const { section } = await inquirer.prompt([
       {
-        type: 'list',
+        type: 'select',
         name: 'section',
         message: 'Select section to edit:',
         choices: groupChoices,

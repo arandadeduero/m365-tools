@@ -36,7 +36,7 @@ export async function searchCommand(query, options = {}) {
 
   const { selected } = await inquirer.prompt([
     {
-      type: 'list',
+      type: 'select',
       name: 'selected',
       message: 'Select a user:',
       choices,
@@ -70,7 +70,7 @@ async function showUserDetail(identifier, autoEdit = false) {
 
   const { action } = await inquirer.prompt([
     {
-      type: 'list',
+      type: 'select',
       name: 'action',
       message: 'What would you like to do?',
       choices: [

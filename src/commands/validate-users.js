@@ -90,7 +90,7 @@ async function runFixGroupsByManager(users, groupsMap) {
   }
 
   const { managerId } = await inquirer.prompt([{
-    type: 'list',
+    type: 'select',
     name: 'managerId',
     message: 'Selecciona el manager:',
     choices: managerResults.map((u) => ({
@@ -142,7 +142,7 @@ async function runFixGroupsByManager(users, groupsMap) {
   }
 
   const { groupId } = await inquirer.prompt([{
-    type: 'list',
+    type: 'select',
     name: 'groupId',
     message: 'Selecciona el grupo:',
     choices: groupResults.map((g) => ({

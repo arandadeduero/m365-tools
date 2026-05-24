@@ -147,7 +147,7 @@ async function editLoop(filtered, directSection) {
 
     const { selected } = await inquirer.prompt([
       {
-        type: 'list',
+        type: 'select',
         name: 'selected',
         message: 'Select a user to edit (or exit):',
         choices,

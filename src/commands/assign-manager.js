@@ -19,7 +19,7 @@ export async function assignManagerByJobTitle() {
   // Step 1 — choose filter mode
   const { mode } = await inquirer.prompt([
     {
-      type: 'list',
+      type: 'select',
       name: 'mode',
       message: 'Assign manager by:',
       choices: [
@@ -46,7 +46,7 @@ export async function assignManagerByJobTitle() {
 
     const { jobTitle } = await inquirer.prompt([
       {
-        type: 'list',
+        type: 'select',
         name: 'jobTitle',
         message: 'Select job title:',
         choices: titles,
@@ -71,7 +71,7 @@ export async function assignManagerByJobTitle() {
 
     const { department } = await inquirer.prompt([
       {
-        type: 'list',
+        type: 'select',
         name: 'department',
         message: 'Select department:',
         choices: depts,
