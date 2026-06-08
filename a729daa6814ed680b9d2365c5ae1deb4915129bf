@@ -1,0 +1,20 @@
+README.md
+  s_c0d38ad764125b::t_1b3afa0396046b 1-8,10-267
+  s_c0d38ad764125b::t_a3c6e48c82eba5 9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.0",
+  "base_commit_sha": "a729daa6814ed680b9d2365c5ae1deb4915129bf",
+  "prompts": {},
+  "sessions": {
+    "s_c0d38ad764125b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1b3954eb9ffeK9lOscJLBbUsDo",
+        "model": "claude-sonnet-4.6"
+      },
+      "human_author": "Guillermo López Leal <guillermo.lopezleal@vonage.com>"
+    }
+  }
+}

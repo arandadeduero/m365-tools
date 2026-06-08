@@ -1,0 +1,20 @@
+.github/workflows/ci.yml
+  s_d9a9547298fee1::t_85ee1e6de654e5 1-4,6-7,15-16,18-32
+  s_d9a9547298fee1::t_ab1fd53ef64d0a 5,8-14,17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.0",
+  "base_commit_sha": "0bb7eb4ca01edb9696774b54dc624b32bef6ba2d",
+  "prompts": {},
+  "sessions": {
+    "s_d9a9547298fee1": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1b3548f90fferUZxtaEPpXouNR",
+        "model": "claude-sonnet-4.6"
+      },
+      "human_author": "Guillermo López Leal <guillermo.lopezleal@vonage.com>"
+    }
+  }
+}
