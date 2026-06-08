@@ -1,0 +1,21 @@
+src/index.js
+  s_7c882a7543ef71::t_5f15a563310612 19,377-389
+src/commands/reset-password.js
+  s_7c882a7543ef71::t_8c4c6ac225375d 1-131
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "02b93db1e79d96d19c4031d8ae4086df3da41734",
+  "prompts": {},
+  "sessions": {
+    "s_7c882a7543ef71": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_156d2db32ffeXPIpxMn2HuiT7h",
+        "model": "gemini-3.5-flash"
+      },
+      "human_author": "Guillermo López <willyaranda@gmail.com>"
+    }
+  }
+}
