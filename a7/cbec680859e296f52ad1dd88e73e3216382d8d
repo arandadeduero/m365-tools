@@ -1,0 +1,20 @@
+README.md
+  s_7c882a7543ef71::t_6bcdd33e9874b1 371-403,437
+  s_7c882a7543ef71::t_308d863b9090ee 438
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "a7cbec680859e296f52ad1dd88e73e3216382d8d",
+  "prompts": {},
+  "sessions": {
+    "s_7c882a7543ef71": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_156d2db32ffeXPIpxMn2HuiT7h",
+        "model": "gemini-3.5-flash"
+      },
+      "human_author": "Guillermo López <willyaranda@gmail.com>"
+    }
+  }
+}
