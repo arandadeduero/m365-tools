@@ -16,6 +16,7 @@ import { validateCommand } from './commands/validate.js';
 import { syncCheckCommand } from './commands/sync-check.js';
 import { validateUsersCommand } from './commands/validate-users.js';
 import { syncEmployeeIdsCommand } from './commands/sync-employee-ids.js';
+import { resetPasswordCommand } from './commands/reset-password.js';
 import pkg from '../package.json' with { type: 'json' };
 
 // ---------------------------------------------------------------------------
@@ -368,6 +369,24 @@ program
   .action(async () => {
     try {
       await validateCommand();
+    } catch (err) {
+      handleError(err);
+    }
+  });
+
+// ---------------------------------------------------------------------------
+// reset-password command
+// ---------------------------------------------------------------------------
+
+program
+  .command('reset-password <username>')
+  .description('Reset a user\'s password and generate a mailto: link with the new credentials.')
+  .action(async (username) => {
+    const opts = program.opts();
+    const config = await loadConfig(opts.config);
+    initAuth(config);
+    try {
+      await resetPasswordCommand(normalizeUpn(username, getDomain()));
     } catch (err) {
       handleError(err);
     }
