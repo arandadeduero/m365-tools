@@ -368,6 +368,39 @@ Las filas con un valor distinto se muestran como advertencia y no se sincronizan
 4. Aplica un único PATCH por usuario con todos los campos a actualizar
 5. Muestra un resumen final (correctos / fallidos / advertencias)
 
+### `reset-password <username>`
+
+Restablece la contraseña de un usuario y genera un enlace `mailto:` listo para abrir en el cliente de correo con las credenciales incluidas en el cuerpo.
+
+```bash
+m365-users reset-password jgarcia
+m365-users reset-password jgarcia@arandadeduero.es
+```
+
+El nombre de usuario acepta el formato corto (sin dominio): si se omite `@arandadeduero.es` se completa automáticamente.
+
+**Flujo:**
+
+1. Busca el usuario en Azure AD y muestra su ficha (nombre, UPN, puesto, departamento).
+2. Genera una contraseña legible con el formato `Palabra-NNNN-Palabra` (ej. `Monte-3847-Roble`).
+3. Muestra la contraseña generada **antes** de pedir confirmación.
+4. Solicita confirmación única (por defecto: No).
+5. Aplica el cambio vía Graph API con `forceChangePasswordNextSignIn: true` (el usuario deberá cambiarla en el primer inicio de sesión).
+6. Imprime la nueva contraseña y un enlace `mailto:` con los datos de acceso.
+
+**Enlace `mailto:` generado:**
+
+```
+Para:    usuario@arandadeduero.es
+Asunto:  Microsoft365
+Cuerpo:
+  username: usuario@arandadeduero.es
+  password: Monte-3847-Roble
+  url: https://aytoarandaduero.sharepoint.com/
+```
+
+---
+
 ## Opción global
 
 Todos los comandos aceptan `-c` para usar un archivo de configuración alternativo:
@@ -401,7 +434,8 @@ m365-users/
     │   ├── validate.js     # Validación del Excel de trabajadores
     │   ├── validate-users.js  # Listado de usuarios con sus grupos
     │   ├── sync-check.js   # Comprobación de sincronización con M365
-    │   └── sync-employee-ids.js  # Sincronización de id_empleado/Tipo → employeeId/employeeType
+    │   ├── sync-employee-ids.js  # Sincronización de id_empleado/Tipo → employeeId/employeeType
+    │   └── reset-password.js    # Restablecimiento de contraseña con enlace mailto:
     ├── validators/
     │   └── csv-rules.js    # Reglas de validación del Excel
     └── utils/
