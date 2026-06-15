@@ -1,0 +1,191 @@
+src/utils/excel.js
+  s_01cccac09018dd::t_1e918ab0ac2111 4
+  s_a170c27e618dfe::t_e34437eb76c09e 16
+  s_01cccac09018dd::t_f824cef2e0a034 97,99
+  s_a170c27e618dfe::t_1083f282cb9fd5 11,13-14,17-53
+  s_a170c27e618dfe::t_339015bb91224e 12,15
+test-find.js
+  s_a170c27e618dfe::t_879ef5759faa9f 1-7
+src/commands/sync-check.js
+  s_16f50633232a9c::t_68c94ac13da45a 40
+  s_01cccac09018dd::t_7e7e077a49ea23 39,65,68-69,72-86
+src/commands/list.js
+  s_e834655a64246b::t_bcd2e632094059 284,300-302,314
+  s_e834655a64246b::t_f35f6aed999209 68,80
+  s_e834655a64246b::t_61dae007297acc 17
+  s_e834655a64246b::t_0203c98701f4c7 285-286,303-305,315-316
+  s_e834655a64246b::t_e45ab79ba2f7c0 270
+  s_e834655a64246b::t_99826a594c9983 269
+src/graph.js
+  s_cdca91c84cdebe::t_9c0269a60ba49a 696,706,713
+  s_cdca91c84cdebe::t_6e251675750baa 663-668,672,675,681,683-684,687,689,698,721-726,729,738-739,741,754-755,757
+  s_e834655a64246b::t_7b4afb6843abe4 217
+  s_cdca91c84cdebe::t_f3416ba54d04c8 685-686,692,694-695,699,704-705
+  s_cdca91c84cdebe::t_b60f40d8087bb7 700-703,707-712,714-720
+  s_cdca91c84cdebe::t_8d2bf7dbaa63f0 669-671,673-674,676-680,682,688,690-691,693,697,727-728,730-737,740,742-753,756
+.gitignore
+  s_01cccac09018dd::t_78f703eca8fbbf 32-34,36-37
+src/commands/import.js
+  s_16f50633232a9c::t_c1089b50e09e1c 6
+  s_a170c27e618dfe::t_06b1bc87e07601 5,45,48
+  s_16f50633232a9c::t_625a4a69e4637a 9-31
+  s_28ce6786512c48::t_f98ab96f3c00a1 54-55,57-58
+  s_a170c27e618dfe::t_7ed34d339c25e6 4,37,41-44,46
+  s_16f50633232a9c::t_94043c9c76887b 147
+  s_16f50633232a9c::t_c057f90682769c 87,89-93
+  s_16f50633232a9c::t_e2d654a71b476b 109,115,123
+  s_16f50633232a9c::t_c5afd159e97ce8 127-130
+  s_16f50633232a9c::t_971c996cf04767 110,122
+  s_16f50633232a9c::t_7ab42f5288b1a6 112-114,116-121,175
+  s_16f50633232a9c::t_c9a4a65065fd5c 3
+  s_a170c27e618dfe::t_c0207bd4a62f51 151
+  s_16f50633232a9c::t_bb051dc118fc27 126,131
+  s_01cccac09018dd::t_0b102eaec8f496 2
+  s_a170c27e618dfe::t_c5e51d8bea737b 49-52,56,59-62
+  s_16f50633232a9c::t_8e4934f483aac3 176-181
+  s_28ce6786512c48::t_4155c67af41e9e 140-142,144-146,148-150,152-158,160-169,171-172
+  s_16f50633232a9c::t_bf82a8a354e6d8 143
+src/index.js
+  s_a170c27e618dfe::t_b30175c359450f 130-132
+  s_16f50633232a9c::t_261baaa95540ef 20
+  s_cdca91c84cdebe::t_21e902fa916167 294-300,302-307,309-313
+  s_a170c27e618dfe::t_8cc501f1e9fcd8 121
+  s_01cccac09018dd::t_66f63e7327ac30 347,371,393
+  s_e834655a64246b::t_d7609968a4e74c 165-186
+  s_a170c27e618dfe::t_a10ca777d94e80 117,120
+  s_a170c27e618dfe::t_e1ae5ec4ad513d 21
+  s_16f50633232a9c::t_9c429610dec9cd 124
+  s_01cccac09018dd::t_4730599bf6b98f 119,125
+  s_cdca91c84cdebe::t_87536a227e2df8 301,308
+  s_16f50633232a9c::t_1feaffe01f9a7c 348
+  s_a170c27e618dfe::t_c18af973935f1d 5
+test-path.js
+  s_a170c27e618dfe::t_36cc974e66efb0 1-7
+src/constants.js
+  s_16f50633232a9c::t_67602ead62fd69 1-2
+src/validators/excel-rules.js
+  s_16f50633232a9c::t_6b417b2a90e632 155
+  s_16f50633232a9c::t_3804dfbbcc148b 165-167
+  s_16f50633232a9c::t_9044d99d296318 22-23
+  s_16f50633232a9c::t_c116995b9a473d 171
+README.md
+  s_cdca91c84cdebe::t_a2da7d14a5979a 14
+  s_cdca91c84cdebe::t_86ac49fb325383 49
+  s_cdca91c84cdebe::t_1519e0c3d2c65d 243-244,246,258-264,269-272,276-280,283-287
+  s_cdca91c84cdebe::t_3af6f791250aa4 479-480
+  s_01cccac09018dd::t_50ddaee1d67481 466-467,474,487,491
+  s_01cccac09018dd::t_283bc2f4597788 97,99,102,110,112,118
+  s_cdca91c84cdebe::t_72e59575dfadba 245,247-257,273-275,281-282
+  s_cdca91c84cdebe::t_337e2b18e007a7 265-268
+test-path-2.js
+  s_a170c27e618dfe::t_fa250caaa249bf 1-8
+src/commands/sync-employee-ids.js
+  s_16f50633232a9c::t_4f12f708a1d918 37
+  s_01cccac09018dd::t_b305db18fdf776 36,49,52-53,56-76
+src/utils/upn.js
+  s_16f50633232a9c::t_8b9be787dc84fa 6
+src/commands/fix-timezone.js
+  s_cdca91c84cdebe::t_4553a95646cc67 28,30
+  s_cdca91c84cdebe::t_0df85cfde1224b 4
+  s_cdca91c84cdebe::t_c929a3a31a9f07 31-47,49,51-59
+  s_cdca91c84cdebe::t_32983d419207d2 97-104
+  s_cdca91c84cdebe::t_e36e6288b25815 96,105-106
+  s_cdca91c84cdebe::t_4b3adc86adb1d9 1-2,5-16,27,29,60-76,78,80-83,85-87,93,95,116,126-127,129-131,133-139,143,166-167,169-215,217,219,227-229,231-249,252-268,270-274,279-282,293-295,298-312
+  s_cdca91c84cdebe::t_b08340130f7bae 22-25,48,50,84,88-92,107-115,132,140-142,144-165,168,221-225,250-251,275-278,284-287
+src/commands/reset-password.js
+  s_16f50633232a9c::t_403e5211e65239 38
+  s_16f50633232a9c::t_b677e5dd23fa4d 6-7
+  s_16f50633232a9c::t_823d2289ab4fd1 118
+src/commands/validate.js
+  s_01cccac09018dd::t_a9f1561632ce8b 4
+  s_01cccac09018dd::t_0feb6abab7c577 5,20
+  s_a170c27e618dfe::t_346f8eb4c9aba0 19,22-23,25-27,35
+test/excel-rules.test.js
+  s_16f50633232a9c::t_80af4125fef647 3
+  s_16f50633232a9c::t_9bfb6b08797795 167-176
+  s_16f50633232a9c::t_46cbf24d33a0d6 91
+  s_01cccac09018dd::t_20846c44e0f92c 2
+test/excel-importer.test.js
+  s_01cccac09018dd::t_2f4511a0e1212e 33
+  s_01cccac09018dd::t_35ca6afeb2f27f 2-5,9-31,34-42,46-54
+  s_01cccac09018dd::t_fea9cb6c1a381b 45
+  s_01cccac09018dd::t_5530deba5eff68 170-178
+  s_01cccac09018dd::t_5cdf50ae33eaf1 6
+  s_16f50633232a9c::t_7aa456500a8279 57-68
+test/upn.test.js
+  s_01cccac09018dd::t_9a6f3a33c262ba 33-39
+config.example.json
+  h_3aa52f59e1a7c5 8-10
+src/utils/excel-importer.js
+  s_16f50633232a9c::t_575901b2209194 68-73,75-76
+  s_a170c27e618dfe::t_e7f9ecc05a4701 4
+  s_16f50633232a9c::t_d7be95ca1c4231 48-52,78-96
+  s_16f50633232a9c::t_f6e4e66ce904fd 65
+  s_16f50633232a9c::t_c643cb3b547cd0 140-144
+  s_a170c27e618dfe::t_929b6200e1d8e4 54-55,57-64,66-67,74,77,97-98,108-116,135,146-150
+  s_01cccac09018dd::t_cb05347fe36b79 1,6-45,117-118,123-128,153
+  s_a170c27e618dfe::t_2a9e6f94edf7a6 56,99-107,119-122,129
+src/auth.js
+  s_16f50633232a9c::t_d4b5bd1ba057c8 171-174
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.7",
+  "base_commit_sha": "973089f8afecea13f2c62fb1e75032cf36b78eaa",
+  "prompts": {},
+  "humans": {
+    "h_3aa52f59e1a7c5": {
+      "author": "Guillermo López <willyaranda@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_01cccac09018dd": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_14395924fffe9JMoIyh3XS5dKe",
+        "model": "gemini-3.1-flash-lite"
+      },
+      "human_author": "Guillermo López <willyaranda@gmail.com>"
+    },
+    "s_16f50633232a9c": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1436ae989ffeZL19PheKEpjNz4",
+        "model": "gemini-3.1-flash-lite"
+      },
+      "human_author": "Guillermo López <willyaranda@gmail.com>"
+    },
+    "s_28ce6786512c48": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_143276359ffedDDcjDhcCggJUg",
+        "model": "gemini-3.1-flash-lite"
+      },
+      "human_author": "Guillermo López <willyaranda@gmail.com>"
+    },
+    "s_a170c27e618dfe": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1437f34c0ffe1cylO7OOhCx99A",
+        "model": "gemini-3.1-flash-lite"
+      },
+      "human_author": "Guillermo López <willyaranda@gmail.com>"
+    },
+    "s_cdca91c84cdebe": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_156628fc3ffeSFVAvqeLFeIdVT",
+        "model": "claude-sonnet-4.6"
+      },
+      "human_author": "Guillermo López <willyaranda@gmail.com>"
+    },
+    "s_e834655a64246b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1495dfffaffeGhFB3Lcc2zV4oZ",
+        "model": "gemini-3.1-flash-lite"
+      },
+      "human_author": "Guillermo López <willyaranda@gmail.com>"
+    }
+  }
+}
