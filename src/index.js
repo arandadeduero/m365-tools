@@ -2,7 +2,7 @@
 
 import { program } from 'commander';
 import { readFile, access } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { resolve, join } from 'node:path';
 import chalk from 'chalk';
 import { initAuth, login, logout, getDomain } from './auth.js';
 import { normalizeUpn } from './utils/upn.js';
@@ -17,6 +17,8 @@ import { syncCheckCommand } from './commands/sync-check.js';
 import { validateUsersCommand } from './commands/validate-users.js';
 import { syncEmployeeIdsCommand } from './commands/sync-employee-ids.js';
 import { resetPasswordCommand } from './commands/reset-password.js';
+import { REQUIRED_DOMAIN } from './constants.js';
+import { REAL_EXCEL_DIR } from './utils/excel.js';
 import pkg from '../package.json' with { type: 'json' };
 
 // ---------------------------------------------------------------------------
@@ -112,18 +114,22 @@ program
 // ---------------------------------------------------------------------------
 
 program
-  .command('import <csvFile>')
+  .command('import [excelFile]')
   .description(
-    'Batch import users from a CSV file. Creates new users and updates existing ones.\n' +
-    '  Required CSV columns: userPrincipalName, displayName, mailNickname, password\n' +
+    'Batch import users from an Excel file. Creates new users and updates existing ones.\n' +
+    '  If no file is provided, it looks for the file in the real-excel/ folder.\n' +
+    '  Required columns: userPrincipalName, displayName, mailNickname\n' +
     '  Optional columns: givenName, surname, jobTitle, department, manager, ...'
   )
-  .action(async (csvFile, options) => {
+  .option('--limit <number>', 'Limit the number of users to process', parseInt)
+  .action(async (excelFile, options) => {
     const opts = program.opts();
     const config = await loadConfig(opts.config);
     initAuth(config);
     try {
-      await importUsers(resolve(csvFile), options);
+      // If a file is provided, treat it as relative to the real-excel/ folder
+      const path = excelFile ? join(REAL_EXCEL_DIR, excelFile) : null;
+      await importUsers(path, options);
     } catch (err) {
       handleError(err);
     }
@@ -156,26 +162,28 @@ program
   .command('list')
   .description('List active users in the tenant (default). Use --disabled to list disabled users instead.')
   .option('--disabled', 'List disabled (inactive) users instead of active ones')
-  .option('--missing-manager', 'Only show users without a manager assigned')
-  .option('--missing-department', 'Only show users without a department')
-  .option('--missing-job-title', 'Only show users without a job title')
-  .option('-e, --edit', 'Select a user from the list to edit interactively')
-  .action(async (options) => {
-    const opts = program.opts();
-    const config = await loadConfig(opts.config);
-    initAuth(config);
-    try {
-      await listCommand({
-        disabled:     !!options.disabled,
-        noManager:    !!options.missingManager,
-        noDepartment: !!options.missingDepartment,
-        noJobTitle:   !!options.missingJobTitle,
-        edit:         !!options.edit,
-      });
-    } catch (err) {
-      handleError(err);
-    }
-  });
+   .option('--missing-manager', 'Only show users without a manager assigned')
+   .option('--missing-department', 'Only show users without a department')
+   .option('--missing-job-title', 'Only show users without a job title')
+   .option('--never-signed-in', 'Only show users who have never signed in')
+   .option('-e, --edit', 'Select a user from the list to edit interactively')
+   .action(async (options) => {
+     const opts = program.opts();
+     const config = await loadConfig(opts.config);
+     initAuth(config);
+     try {
+       await listCommand({
+         disabled:      !!options.disabled,
+         noManager:     !!options.missingManager,
+         noDepartment:  !!options.missingDepartment,
+         noJobTitle:    !!options.missingJobTitle,
+         neverSignedIn: !!options.neverSignedIn,
+         edit:          !!options.edit,
+       });
+     } catch (err) {
+       handleError(err);
+     }
+   });
 
 // ---------------------------------------------------------------------------
 // assign-manager command
@@ -283,6 +291,26 @@ fixCmd
     }
   });
 
+fixCmd
+  .command('timezone')
+  .description(
+    'Set mailbox timezone to Romance Standard Time (Europe/Madrid) for all active users.\n' +
+    '  Requires MailboxSettings.ReadWrite permission on the app registration.'
+  )
+  .option('--dry-run', 'Preview changes without applying them')
+  .option('--debug',   'Print raw mailboxSettings API response for each user')
+  .action(async (options) => {
+    const opts = program.opts();
+    const config = await loadConfig(opts.config);
+    initAuth(config);
+    const { fixTimezone } = await import('./commands/fix-timezone.js');
+    try {
+      await fixTimezone({ dryRun: !!options.dryRun, debug: !!options.debug });
+    } catch (err) {
+      handleError(err);
+    }
+  });
+
 // ---------------------------------------------------------------------------
 // validate-users command
 // ---------------------------------------------------------------------------
@@ -316,8 +344,8 @@ program
 program
   .command('sync-check')
   .description(
-    'Cross-reference the employee Excel file (real-csv/) with Microsoft 365 and report sync issues.\n' +
-    '  Check 1: Active employees (@arandadeduero.es, no Fecha de Baja) must have an M365 account.\n' +
+    'Cross-reference the employee Excel file (real-excel/) with Microsoft 365 and report sync issues.\n' +
+    `  Check 1: Active employees (${REQUIRED_DOMAIN}, no Fecha de Baja) must have an M365 account.\n` +
     '  Check 2: Employees with a Fecha de Baja must have their cloud account disabled.\n' +
     '  Use --disable-left-workers to disable and unlicense Check 2 accounts (with double confirmation).'
   )
@@ -340,7 +368,7 @@ program
 program
   .command('sync-employee-ids')
   .description(
-    'Lee id_empleado del Excel (real-csv/) y lo escribe en el campo employeeId de cada usuario en M365.\n' +
+    'Lee id_empleado del Excel (real-excel/) y lo escribe en el campo employeeId de cada usuario en M365.\n' +
     '  El Excel es la fuente de verdad: siempre sobreescribe el valor en la nube.\n' +
     '  La coincidencia se hace por email (e_mail → userPrincipalName).'
   )
@@ -362,7 +390,7 @@ program
 program
   .command('validate')
   .description(
-    'Validate the employee Excel file in real-csv/ against a set of data quality rules.\n' +
+    'Validate the employee Excel file in real-excel/ against a set of data quality rules.\n' +
     '  Checks: id_empleado (required, unique), e_mail (required, correct domain),\n' +
     '          id_responsable (must reference a known id_empleado).'
   )

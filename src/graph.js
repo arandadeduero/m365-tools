@@ -214,6 +214,7 @@ export async function listAllUsers({ onlyDisabled = false, checkManager = false,
     'id', 'userPrincipalName', 'displayName', 'givenName', 'surname',
     'mail', 'jobTitle', 'department', 'companyName', 'officeLocation',
     'accountEnabled', 'userType', 'employeeId', 'employeeType',
+    'signInActivity', 'lastPasswordChangeDateTime',
   ];
 
   // Filter server-side: active/disabled + exclude external guest users (#EXT#)
@@ -658,4 +659,99 @@ export async function fetchGroupsMap(users, onProgress) {
 
   seedGroupsMap(map);
   return map;
+}
+
+// ---------------------------------------------------------------------------
+// Mailbox settings
+// ---------------------------------------------------------------------------
+
+/**
+ * Get the mailbox timezone settings for a user, including both the top-level
+ * calendar timezone and the workingHours timezone (which Teams and Outlook use
+ * for free/busy and availability display).
+ *
+ * Returns null if the user has no Exchange mailbox (no license, 404, 403, 400).
+ *
+ * @param {string} identifier - UPN or object ID
+ * @returns {Promise<{
+ *   timeZone: string|null,
+ *   workingHoursTimeZone: string|null,
+ *   workingHours: object|null,
+ * }|null>}
+ */
+export async function getMailboxTzSettings(identifier) {
+  const client = buildClient();
+  try {
+    // Do NOT use .select() here — $select is not supported on the mailboxSettings
+    // singleton endpoint and causes a 400, silently returning null for every user.
+    const result = await client
+      .api(`/users/${encodeURIComponent(identifier)}/mailboxSettings`)
+      .get();
+
+    return {
+      timeZone:             result?.timeZone ?? null,
+      workingHoursTimeZone: result?.workingHours?.timeZone?.name ?? null,
+      workingHours:         result?.workingHours ?? null,
+      _raw:                 result,
+      _error:               null,
+    };
+  } catch (err) {
+    const status = err.statusCode ?? err.status ?? err.response?.status;
+    const code   = err.code ?? '';
+
+    const noMailbox =
+      status === 404 ||
+      String(code).includes('MailboxNotEnabledForRESTAPI') ||
+      String(code).includes('ResourceNotFound') ||
+      String(code).includes('ErrorMailboxStoreUnavailable');
+
+    const accessDenied =
+      status === 403 ||
+      String(code).includes('ErrorAccessDenied');
+
+    const badRequest = status === 400;
+
+    if (noMailbox || accessDenied || badRequest) {
+      return {
+        _raw:    null,
+        _error:  { status, code, message: err.message, body: err.body ?? null },
+        // Expose the reason so fix-timezone.js can categorise correctly
+        _reason: noMailbox ? 'no-mailbox' : accessDenied ? 'access-denied' : 'bad-request',
+      };
+    }
+    throw err;
+  }
+}
+
+/**
+ * Set the mailbox timezone for a user, updating both the top-level calendar
+ * timezone AND the workingHours timezone in a single PATCH call.
+ *
+ * The workingHours schedule (days of week, start/end times) is preserved
+ * exactly as-is; only the timezone inside workingHours is changed.
+ * If the user has no workingHours configured, only the top-level timeZone
+ * is patched.
+ *
+ * @param {string}      identifier    - UPN or object ID
+ * @param {string}      timeZone      - Windows timezone string (e.g. "Romance Standard Time")
+ * @param {object|null} workingHours  - Existing workingHours object from getMailboxTzSettings
+ * @returns {Promise<object>} Updated mailboxSettings fragment
+ */
+export async function setMailboxTzSettings(identifier, timeZone, workingHours) {
+  const client = buildClient();
+
+  const body = { timeZone };
+
+  if (workingHours) {
+    body.workingHours = {
+      daysOfWeek: workingHours.daysOfWeek,
+      startTime:  workingHours.startTime,
+      endTime:    workingHours.endTime,
+      timeZone:   { name: timeZone },
+    };
+  }
+
+  return client
+    .api(`/users/${encodeURIComponent(identifier)}/mailboxSettings`)
+    .patch(body);
 }

@@ -1,5 +1,6 @@
 import test from 'ava';
-import { RULES } from '../src/validators/csv-rules.js';
+import { RULES } from '../src/validators/excel-rules.js';
+import { REQUIRED_DOMAIN } from '../src/constants.js';
 
 // Helper to find a rule by id
 const rule = (id) => RULES.find((r) => r.id === id);
@@ -87,7 +88,7 @@ test('email-required-domain: wrong domain is an issue', (t) => {
   const rows = [{ e_mail: 'jdoe@gmail.com' }];
   const issues = ruleEmail.validate(rows);
   t.is(issues.length, 1);
-  t.regex(issues[0].message, /arandadeduero\.es/);
+  t.regex(issues[0].message, new RegExp(REQUIRED_DOMAIN.replace('.', '\\.')));
 });
 
 test('email-required-domain: domain check is case-insensitive', (t) => {
@@ -163,16 +164,16 @@ test('id_responsable-exists: empty ID Responsable is allowed (top-level)', (t) =
 
 test('id_responsable-exists: unknown reference is an issue', (t) => {
   const rows = [
-    { id_empleado: 'E001', 'ID Responsable': 'E999' },
+    { id_empleado: 'E001', 'ID responsable': 'E999' },
   ];
   const issues = ruleIdResponsable.validate(rows);
   t.is(issues.length, 1);
-  t.is(issues[0].column, 'ID Responsable');
+  t.is(issues[0].column, 'ID responsable');
   t.is(issues[0].value, 'E999');
   t.regex(issues[0].message, /E999/);
 });
 
-test('id_responsable-exists: undefined ID Responsable treated as empty (ok)', (t) => {
+test('id_responsable-exists: undefined ID responsable treated as empty (ok)', (t) => {
   const rows = [{ id_empleado: 'E001' }];
   t.deepEqual(ruleIdResponsable.validate(rows), []);
 });

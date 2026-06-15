@@ -1,18 +1,65 @@
 import chalk from 'chalk';
-import { parseCSV, rowToUserPayload, stripPasswordFromPayload } from '../utils/csv.js';
-import { createUser, updateUser, findUserByUpn, setManager } from '../graph.js';
+import { parseExcel, rowToUserPayload, stripPasswordFromPayload } from '../utils/excel-importer.js';
+import { createUser, updateUser, findUserByUpn, setManager, listAllUsers, getUserLicenses, getManager } from '../graph.js';
+import { findExcelFile } from '../utils/excel.js';
+import { getDomain } from '../auth.js';
+import { generatePassword } from './reset-password.js';
+
+/**
+ * Helper to identify changes between payload and existing user.
+ */
+function getChanges(payload, existing) {
+  const changes = [];
+  const fieldsToCheck = [
+    'displayName', 'givenName', 'surname', 'jobTitle', 'department',
+    'mobilePhone', 'officeLocation', 'city', 'state', 'postalCode',
+    'country', 'usageLocation', 'preferredLanguage'
+  ];
+
+  for (const field of fieldsToCheck) {
+    const pValue = payload[field];
+    const eValue = existing[field];
+    if (pValue !== undefined && pValue !== eValue) {
+      changes.push({
+        field,
+        old: eValue ?? '(null)',
+        new: pValue
+      });
+    }
+  }
+  return changes;
+}
 
 /**
  * Import users from a CSV file. Creates or updates users (upsert).
  * After creating/updating, assigns the manager if provided.
  *
- * @param {string} filePath - Path to the CSV file
+ * @param {string|null} filePath - Path to the CSV file or null to auto-find in real-excel/
  * @param {object} options - Command options
  */
 export async function importUsers(filePath, options = {}) {
-  console.log(chalk.cyan(`\nParsing CSV: ${filePath}\n`));
+  let path = filePath;
+  if (!path) {
+    path = await findExcelFile();
+  }
+  const domain = getDomain();
+  console.log(chalk.cyan(`\nParsing CSV: ${path}\n`));
 
-  const { rows, errors } = parseCSV(filePath);
+  const { rows, errors } = await parseExcel(path, domain);
+
+  // Load all users to map employeeId to userId for manager assignment
+  console.log(chalk.gray('Loading M365 user list to resolve managers...'));
+  const allUsers = await listAllUsers();
+
+  // Create a map of EmployeeID -> M365 User Object for fast lookup
+  const employeeIdToUserMap = new Map();
+  for (const user of allUsers) {
+    if (user.employeeId) {
+      employeeIdToUserMap.set(user.employeeId, user);
+    }
+  }
+
+  console.log(chalk.gray(`Loaded ${allUsers.length} users.\n`));
 
   // Report parse/validation errors
   if (errors.length > 0) {
@@ -37,7 +84,13 @@ export async function importUsers(filePath, options = {}) {
     managerErrors: [],
   };
 
+  let processedCount = 0;
   for (const row of rows) {
+    if (options.limit && processedCount >= options.limit) {
+      console.log(chalk.yellow(`\nReached limit of ${options.limit} users. Stopping.`));
+      break;
+    }
+    processedCount++;
     const { userPayload, manager } = rowToUserPayload(row);
     const upn = userPayload.userPrincipalName;
 
@@ -52,12 +105,30 @@ export async function importUsers(filePath, options = {}) {
         const updatePayload = stripPasswordFromPayload(userPayload);
         // Remove fields that cannot be updated via PATCH in the same call
         delete updatePayload.mailNickname; // can cause issues if not changed
-        await updateUser(upn, updatePayload);
-        userId = existing.id;
-        results.updated.push(upn);
-        console.log(chalk.blue(`  [UPDATE] ${upn} — ${userPayload.displayName}`));
+
+        const changes = getChanges(updatePayload, existing);
+        const isReady = changes.length === 0;
+
+        if (isReady) {
+          console.log(chalk.green(`  [IS-READY] ${upn} — ${userPayload.displayName}`));
+          userId = existing.id;
+        } else {
+          await updateUser(upn, updatePayload);
+          userId = existing.id;
+          results.updated.push(upn);
+          console.log(chalk.blue(`  [UPDATE] ${upn} — ${userPayload.displayName}`));
+          for (const change of changes) {
+            console.log(chalk.gray(`           Change ${change.field}: ${change.old} -> ${change.new}`));
+          }
+        }
       } else {
         // Create new user
+        if (!userPayload.passwordProfile) {
+          userPayload.passwordProfile = {
+            password: generatePassword(),
+            forceChangePasswordNextSignIn: true,
+          };
+        }
         const created = await createUser(userPayload);
         userId = created.id;
         results.created.push(upn);
@@ -66,13 +137,47 @@ export async function importUsers(filePath, options = {}) {
 
       // Assign manager if provided
       if (manager) {
-        try {
-          await setManager(userId, manager);
-          console.log(chalk.gray(`           Manager set: ${manager}`));
-        } catch (managerErr) {
-          results.managerErrors.push({ upn, manager, error: managerErr.message });
-          console.log(chalk.yellow(`           Warning: Could not set manager ${manager}: ${managerErr.message}`));
+        let managerUpn = String(manager);
+        let managerM365Id = null;
+        const isEmployeeId = /^\d+$/.test(managerUpn);
+
+        if (isEmployeeId) {
+          const managerUser = employeeIdToUserMap.get(managerUpn);
+          managerM365Id = managerUser?.id;
+          if (!managerM365Id) {
+            results.managerErrors.push({ upn, manager: managerUpn, error: 'Manager EmployeeID not found in M365' });
+            console.log(chalk.yellow(`           Warning: Could not find manager with EmployeeID ${managerUpn}`));
+            continue;
+          }
+        } else {
+          // Construct UPN
+          managerUpn = `${managerUpn.toLowerCase()}@${domain}`;
         }
+
+        // Fetch current manager to compare
+        let currentManager = null;
+        try {
+          currentManager = await getManager(userId);
+        } catch (e) {
+          // ignore
+        }
+
+        console.log(chalk.gray(`           Manager: Cloud=${currentManager?.userPrincipalName || '(none)'} | Excel=${managerUpn}`));
+
+        try {
+          await setManager(userId, managerUpn, managerM365Id);
+          console.log(chalk.gray(`           Manager set: ${managerUpn} (resolved to ${managerM365Id || 'UPN'})`));
+        } catch (managerErr) {
+          results.managerErrors.push({ upn, manager: managerUpn, error: managerErr.message });
+          console.log(chalk.yellow(`           Warning: Could not set manager ${managerUpn}: ${managerErr.message}`));
+        }
+      }
+
+
+      // Verify license
+      const licenses = await getUserLicenses(userId);
+      if (licenses.length === 0) {
+        console.log(chalk.yellow(`           Warning: User ${upn} has no active licenses.`));
       }
     } catch (err) {
       results.failed.push({ upn, error: err.message || String(err) });

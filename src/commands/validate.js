@@ -1,8 +1,8 @@
 /**
  * validate command
  *
- * Reads the Excel file found in the real-csv/ folder and runs all validation
- * rules defined in src/validators/csv-rules.js, printing a colour-coded report.
+ * Reads the Excel file found in the real-excel/ folder and runs all validation
+ * rules defined in src/validators/excel-rules.js, printing a colour-coded report.
  *
  * Usage:
  *   m365-users validate
@@ -16,47 +16,23 @@ import { readdir } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import chalk from 'chalk';
-import { readExcel } from '../utils/excel.js';
-import { RULES } from '../validators/csv-rules.js';
+import { readExcel, findExcelFile } from '../utils/excel.js';
+import { RULES } from '../validators/excel-rules.js';
 
-// real-csv/ lives next to the package root (two levels up from src/commands/)
-const PACKAGE_ROOT = resolve(fileURLToPath(import.meta.url), '../../../');
-const REAL_CSV_DIR = join(PACKAGE_ROOT, 'real-csv');
-
-/**
- * Find the first .xlsx file in real-csv/ that is not an Office temp file
- * (temp files start with ~$).
- */
-async function findExcelFile() {
-  let entries;
+// ── 1. Locate file ──────────────────────────────────────────────────────
+async function getFilePath() {
   try {
-    entries = await readdir(REAL_CSV_DIR);
-  } catch {
-    throw new Error(
-      `Cannot read directory: ${REAL_CSV_DIR}\n` +
-        '  Make sure the real-csv/ folder exists and contains an .xlsx file.',
-    );
+    return await findExcelFile();
+  } catch (err) {
+    throw err;
   }
-
-  const file = entries.find(
-    (name) => name.endsWith('.xlsx') && !name.startsWith('~$'),
-  );
-
-  if (!file) {
-    throw new Error(
-      `No .xlsx file found in: ${REAL_CSV_DIR}\n` +
-        '  Add the employee Excel file to the real-csv/ folder.',
-    );
-  }
-
-  return join(REAL_CSV_DIR, file);
 }
 
 export async function validateCommand() {
   // ── 1. Locate file ──────────────────────────────────────────────────────
   let filePath;
   try {
-    filePath = await findExcelFile();
+    filePath = await getFilePath();
   } catch (err) {
     console.error(chalk.red(`\nError: ${err.message}`));
     process.exit(1);

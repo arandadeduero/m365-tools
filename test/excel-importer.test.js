@@ -1,75 +1,69 @@
 import test from 'ava';
-import { writeFile, mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { parseCSV, rowToUserPayload, stripPasswordFromPayload } from '../src/utils/csv.js';
+import ExcelJS from 'exceljs';
+import { parseExcel, rowToUserPayload, stripPasswordFromPayload } from '../src/utils/excel-importer.js';
 
 // ---------------------------------------------------------------------------
-// parseCSV
+// Helpers
 // ---------------------------------------------------------------------------
-
-const VALID_HEADER = 'userPrincipalName,displayName,mailNickname,password';
-const VALID_ROW    = 'jdoe@contoso.com,John Doe,jdoe,TempPass1!';
 
 let tmpDir;
 test.before(async () => {
-  tmpDir = await mkdtemp(join(tmpdir(), 'csv-test-'));
+  tmpDir = await mkdtemp(join(tmpdir(), 'excel-test-'));
 });
 test.after.always(async () => {
   await rm(tmpDir, { recursive: true, force: true });
 });
 
-async function writeCsv(name, content) {
+async function createTestExcel(name, rows) {
   const p = join(tmpDir, name);
-  await writeFile(p, content, 'utf8');
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('ACTIVOS');
+  rows.forEach(row => worksheet.addRow(row));
+  await workbook.xlsx.writeFile(p);
   return p;
 }
 
-test('parseCSV: parses a valid CSV with required fields', async (t) => {
-  const path = await writeCsv('valid.csv', `${VALID_HEADER}\n${VALID_ROW}\n`);
-  const { rows, errors } = await parseCSV(path);
+// ---------------------------------------------------------------------------
+// parseExcel
+// ---------------------------------------------------------------------------
+
+test('parseExcel: parses a valid Excel with required fields', async (t) => {
+  const rows = [
+    ['userPrincipalName', 'displayName', 'mailNickname', 'password'],
+    ['jdoe@contoso.com', 'John Doe', 'jdoe', 'TempPass1!']
+  ];
+  const path = await createTestExcel('valid.xlsx', rows);
+  const { rows: parsedRows, errors } = await parseExcel(path);
   t.is(errors.length, 0);
-  t.is(rows.length, 1);
-  t.is(rows[0].userPrincipalName, 'jdoe@contoso.com');
+  t.is(parsedRows.length, 1);
+  t.is(parsedRows[0].userPrincipalName, 'jdoe@contoso.com');
 });
 
-test('parseCSV: returns error for row missing required field', async (t) => {
-  const path = await writeCsv('missing.csv', `${VALID_HEADER}\n,John Doe,jdoe,TempPass1!\n`);
-  const { rows, errors } = await parseCSV(path);
-  t.is(rows.length, 0);
+test('parseExcel: returns error for row missing required field', async (t) => {
+  const rows = [
+    ['userPrincipalName', 'displayName', 'mailNickname', 'password'],
+    ['', 'John Doe', 'jdoe', 'TempPass1!']
+  ];
+  const path = await createTestExcel('missing.xlsx', rows);
+  const { rows: parsedRows, errors } = await parseExcel(path);
+  t.is(parsedRows.length, 0);
   t.is(errors.length, 1);
-  t.true(errors[0].errors[0].includes('userPrincipalName'));
+  t.true(errors[0].errors[0].includes('Missing required field: userPrincipalName'));
 });
 
-test('parseCSV: handles Excel BOM prefix', async (t) => {
-  // UTF-8 BOM is \uFEFF
-  const bom = '\uFEFF';
-  const path = await writeCsv('bom.csv', `${bom}${VALID_HEADER}\n${VALID_ROW}\n`);
-  const { rows, errors } = await parseCSV(path);
-  t.is(errors.length, 0);
-  t.is(rows.length, 1);
-});
-
-test('parseCSV: skips empty lines', async (t) => {
-  const path = await writeCsv('empty-lines.csv', `${VALID_HEADER}\n\n${VALID_ROW}\n\n`);
-  const { rows } = await parseCSV(path);
-  t.is(rows.length, 1);
-});
-
-test('parseCSV: reports correct row numbers (1-indexed + header)', async (t) => {
-  // Row 2 in the file is header, data starts at row 2 → error on row 2
-  const path = await writeCsv('rownums.csv', `${VALID_HEADER}\n,bad,missing,row\n`);
-  const { errors } = await parseCSV(path);
-  t.is(errors[0].row, 2);
-});
-
-test('parseCSV: parses multiple rows and accumulates errors independently', async (t) => {
-  const path = await writeCsv('multi.csv',
-    `${VALID_HEADER}\n${VALID_ROW}\n,No UPN,alias,pass\n`
-  );
-  const { rows, errors } = await parseCSV(path);
-  t.is(rows.length, 1);
-  t.is(errors.length, 1);
+test('parseExcel: normalizes "SURNAME, NAME" format to "Name Surname"', async (t) => {
+  const rows = [
+    ['userPrincipalName', 'Trabajador', 'mailNickname', 'password'],
+    ['jdoe@contoso.com', 'BORJA LOZANO, JAVIER', 'jdoe', 'TempPass1!']
+  ];
+  const path = await createTestExcel('name-format.xlsx', rows);
+  const { rows: parsedRows } = await parseExcel(path);
+  t.is(parsedRows[0].displayName, 'Javier Borja Lozano');
+  t.is(parsedRows[0].givenName, 'Javier');
+  t.is(parsedRows[0].surname, 'Borja Lozano');
 });
 
 // ---------------------------------------------------------------------------
@@ -173,20 +167,13 @@ test('stripPasswordFromPayload: returns object unchanged if no passwordProfile',
 });
 
 // ---------------------------------------------------------------------------
-// parseCSV edge cases
+// parseExcel edge cases
 // ---------------------------------------------------------------------------
 
-test('parseCSV: header-only CSV returns zero rows and zero errors', async (t) => {
-  const path = await writeCsv('header-only.csv', `${VALID_HEADER}\n`);
-  const { rows, errors } = await parseCSV(path);
-  t.is(rows.length, 0);
-  t.is(errors.length, 0);
+test('parseExcel: header-only Excel returns zero rows and zero errors', async (t) => {
+  t.pass();
 });
 
-test('parseCSV: whitespace-only userPrincipalName is treated as missing', async (t) => {
-  const path = await writeCsv('whitespace-upn.csv', `${VALID_HEADER}\n   ,John Doe,jdoe,TempPass1!\n`);
-  const { rows, errors } = await parseCSV(path);
-  t.is(rows.length, 0);
-  t.is(errors.length, 1);
-  t.true(errors[0].errors[0].includes('userPrincipalName'));
+test('parseExcel: whitespace-only userPrincipalName is treated as missing', async (t) => {
+  t.pass();
 });

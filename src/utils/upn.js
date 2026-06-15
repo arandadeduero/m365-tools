@@ -3,7 +3,7 @@
  * If the value already contains '@', it's returned as-is.
  *
  * @param {string} value  - Raw user input
- * @param {string} domain - Tenant domain, e.g. "arandadeduero.es"
+ * @param {string} domain - Tenant domain (e.g. from constants.js)
  * @returns {string}
  */
 export function normalizeUpn(value, domain) {

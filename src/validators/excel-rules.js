@@ -19,6 +19,8 @@
  * To add a new rule, push a new object into the RULES array below.
  */
 
+import { REQUIRED_DOMAIN } from '../constants.js';
+
 // ---------------------------------------------------------------------------
 // Rule: id_empleado — required and unique
 // ---------------------------------------------------------------------------
@@ -63,8 +65,6 @@ const ruleIdEmpleado = {
 // ---------------------------------------------------------------------------
 // Rule: e_mail — required and must end with @arandadeduero.es
 // ---------------------------------------------------------------------------
-
-const REQUIRED_DOMAIN = '@arandadeduero.es';
 
 const ruleEmail = {
   id: 'email-required-domain',
@@ -152,7 +152,7 @@ const ruleIdResponsable = {
 
     rows.forEach((row, i) => {
       const rowNum = i + 1;
-      const value = row['ID Responsable'] ?? '';
+      const value = row['ID responsable'] ?? '';
 
       if (value === '') {
         // Empty is allowed (top-level director)
@@ -162,13 +162,12 @@ const ruleIdResponsable = {
       if (!knownIds.has(value)) {
         issues.push({
           row: rowNum,
-          column: 'ID Responsable',
+          column: 'ID responsable',
           value,
-          message: `ID Responsable "${value}" does not match any id_empleado in the file`,
+          message: `ID responsable "${value}" does not match any id_empleado in the file`,
         });
       }
     });
-
     return issues;
   },
 };

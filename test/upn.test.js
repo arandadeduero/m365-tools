@@ -30,8 +30,13 @@ test('normalizeUpn: returns value when input is null', (t) => {
   t.is(normalizeUpn(null, 'contoso.com'), null);
 });
 
-test('normalizeUpn: returns empty string for blank-only input', (t) => {
-  t.is(normalizeUpn('   ', 'contoso.com'), '');
+test('normalizeUpn: handles already-uppercased UPN', (t) => {
+  t.is(normalizeUpn('JDOE', 'contoso.com'), 'JDOE@contoso.com');
+});
+
+test('normalizeUpn: handles UPN with multiple @ signs', (t) => {
+  // Edge case: if already has @, returns as is (even if malformed)
+  t.is(normalizeUpn('jdoe@@contoso.com', 'contoso.com'), 'jdoe@@contoso.com');
 });
 
 // ---------------------------------------------------------------------------

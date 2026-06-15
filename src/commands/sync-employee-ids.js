@@ -1,7 +1,7 @@
 /**
  * sync-employee-ids command
  *
- * Reads id_empleado and Tipo de empleado from the Excel file in real-csv/ and
+ * Reads id_empleado and Tipo de empleado from the Excel file in real-excel/ and
  * writes them to the employeeId and employeeType fields of each matching M365 user.
  *
  * Matching is done by email (e_mail → userPrincipalName).
@@ -33,8 +33,8 @@ import { readExcel } from '../utils/excel.js';
 import { listAllUsers, updateUser } from '../graph.js';
 
 const PACKAGE_ROOT = resolve(fileURLToPath(import.meta.url), '../../../');
-const REAL_CSV_DIR = join(PACKAGE_ROOT, 'real-csv');
-const REQUIRED_DOMAIN = '@arandadeduero.es';
+const REAL_EXCEL_DIR = join(PACKAGE_ROOT, 'real-excel');
+import { REQUIRED_DOMAIN } from '../constants.js';
 
 /** Allowed values for Tipo de empleado → employeeType */
 const VALID_EMPLOYEE_TYPES = ['Funcionario', 'Laboral'];
@@ -46,16 +46,34 @@ const VALID_EMPLOYEE_TYPES = ['Funcionario', 'Laboral'];
 async function findExcelFile() {
   let entries;
   try {
-    entries = await readdir(REAL_CSV_DIR);
+    entries = await readdir(REAL_EXCEL_DIR);
   } catch {
     throw new Error(
-      `Cannot read directory: ${REAL_CSV_DIR}\n` +
-        '  Make sure the real-csv/ folder exists and contains an .xlsx file.',
+      `Cannot read directory: ${REAL_EXCEL_DIR}\n` +
+        '  Make sure the real-excel/ folder exists and contains an .xlsx file.',
     );
   }
-  const file = entries.find((n) => n.endsWith('.xlsx') && !n.startsWith('~$'));
-  if (!file) throw new Error(`No .xlsx file found in: ${REAL_CSV_DIR}`);
-  return join(REAL_CSV_DIR, file);
+
+  const files = entries.filter(
+    (name) => name.endsWith('.xlsx') && !name.startsWith('~$'),
+  );
+
+  if (files.length === 0) {
+    throw new Error(
+      `No .xlsx file found in: ${REAL_EXCEL_DIR}\n` +
+        '  Add the employee Excel file to the real-excel/ folder.',
+    );
+  }
+
+  if (files.length > 1) {
+    throw new Error(
+      `Too many .xlsx files found in: ${REAL_EXCEL_DIR}\n` +
+        '  Only one file should exist in the real-excel/ folder.\n' +
+        `  Found: ${files.join(', ')}`,
+    );
+  }
+
+  return join(REAL_EXCEL_DIR, files[0]);
 }
 
 // ---------------------------------------------------------------------------

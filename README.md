@@ -11,6 +11,7 @@ Herramienta de línea de comandos (CLI) para gestionar usuarios de Microsoft 365
 - Un registro de aplicación en Azure Active Directory con los permisos delegados:
   - `User.ReadWrite.All`
   - `Directory.ReadWrite.All`
+  - `MailboxSettings.ReadWrite` (necesario para `fix timezone`)
 
 ---
 
@@ -45,7 +46,7 @@ Edita `config.json`:
   "tenantId": "TU_TENANT_ID",
   "clientId": "TU_CLIENT_ID",
   "domain": "tudominio.com",
-  "scopes": ["User.ReadWrite.All", "Directory.ReadWrite.All"]
+  "scopes": ["User.ReadWrite.All", "Directory.ReadWrite.All", "MailboxSettings.ReadWrite"]
 }
 ```
 
@@ -93,12 +94,12 @@ m365-users logout   # Cerrar sesión y borrar el token guardado
 
 ---
 
-### `import <archivo.csv>`
+### `import <archivo.xlsx>`
 
-Importa o actualiza usuarios en masa desde un CSV.
+Importa o actualiza usuarios en masa desde un archivo Excel.
 
 ```bash
-m365-users import usuarios.csv
+m365-users import usuarios.xlsx
 ```
 
 - Si el usuario **no existe**: lo crea.
@@ -106,15 +107,15 @@ m365-users import usuarios.csv
 - Si la columna `manager` está presente: asigna el manager al final.
 - La operación es **idempotente**: puedes ejecutarla varias veces de forma segura.
 
-#### Formato del CSV
+#### Formato del archivo Excel
 
-Consulta [`sample.csv`](./sample.csv) para ver un ejemplo completo.
+Consulta [`sample.xlsx`](./sample.xlsx) para ver un ejemplo completo.
 
 **Columnas obligatorias:** `userPrincipalName`, `displayName`, `mailNickname`, `password`
 
 **Columnas opcionales:**
 
-| Columna CSV | Campo en Graph API | Notas |
+| Columna Excel | Campo en Graph API | Notas |
 |---|---|---|
 | `givenName` / `surname` | `givenName` / `surname` | Nombre y apellidos |
 | `accountEnabled` | `accountEnabled` | `true` o `false` |
@@ -236,6 +237,51 @@ Analiza la integridad del organigrama completo: detecta usuarios sin manager, ca
 ```bash
 m365-users fix org-chart
 ```
+
+---
+
+### `fix timezone`
+
+Establece la zona horaria del buzón al valor **Romance Standard Time** (equivalente a `Europe/Madrid`, UTC+1 / UTC+2 en verano) para todos los usuarios activos que tengan un valor distinto.
+
+Corrige **dos campos independientes** en un único PATCH por usuario:
+
+| Campo en Graph API | Qué afecta |
+|---|---|
+| `mailboxSettings.timeZone` | Vista del calendario en Outlook y OWA |
+| `mailboxSettings.workingHours.timeZone` | Disponibilidad en Teams, franjas de horario laboral, vista libre/ocupado |
+
+Ambos campos deben estar sincronizados. Un tenant configurado con valores por defecto de Microsoft puede tener `workingHours.timeZone` apuntando a `UTC-7` (Mountain Standard Time, zona horaria de los centros de datos de EE. UU.) incluso aunque `timeZone` ya esté correcto, lo que hace que Teams y el calendario de Outlook muestren horas incorrectas.
+
+El horario laboral de cada usuario (días de la semana, hora de inicio y fin) se **preserva exactamente** tal y como está; solo se cambia la zona horaria dentro de `workingHours`.
+
+```bash
+m365-users fix timezone
+
+# Previsualizar cambios sin aplicar nada
+m365-users fix timezone --dry-run
+```
+
+**Requisito previo:** el registro de aplicación en Azure AD debe tener el permiso delegado `MailboxSettings.ReadWrite` concedido por un administrador del tenant. Además, la **cuenta con la que se ejecuta `m365-users login`** debe tener el rol **Exchange Administrator** (o Global Administrator) asignado en Azure AD. Sin ese rol, Exchange devuelve `403 ErrorAccessDenied` al intentar acceder al buzón de otros usuarios.
+
+> Para asignar el rol: **Azure Portal → Azure Active Directory → Roles y administradores → Exchange Administrator → + Agregar asignaciones → selecciona tu cuenta de administrador**.
+> Tras asignar el rol ejecuta `m365-users logout && m365-users login` para obtener un nuevo token.
+
+**Flujo:**
+
+1. Obtiene todos los usuarios activos del directorio.
+2. Lee `mailboxSettings.timeZone` y `mailboxSettings.workingHours.timeZone` de cada usuario (llamadas secuenciales para respetar los límites de Exchange Online).
+3. Muestra un resumen: cuántos ya tienen ambos valores correctos, cuántos necesitan actualización y cuántos no tienen buzón de Exchange.
+4. Muestra una tabla de previsualización con los usuarios que van a cambiar, indicando para cada uno el valor actual de ambas zonas horarias (resaltado en rojo si está mal) frente al valor objetivo.
+5. Solicita **doble confirmación** antes de aplicar ningún cambio.
+6. Aplica las actualizaciones de forma secuencial e imprime el resultado línea a línea.
+7. Muestra un resumen final: actualizados / ya correctos / sin buzón / fallidos.
+
+Los usuarios sin buzón de Exchange (sin licencia de Outlook/M365) se detectan automáticamente y se omiten sin error.
+
+> **Nota:** los marcadores de hora en los mensajes de chat de Teams usan la **zona horaria del sistema operativo** del dispositivo del usuario, no la configuración del buzón. Si los timestamps del chat siguen siendo incorrectos tras ejecutar este comando, el usuario debe corregir la zona horaria de su PC o móvil.
+
+**Opción `--dry-run`:** muestra la previsualización completa pero no realiza ninguna llamada de escritura a la API.
 
 ---
 
@@ -417,31 +463,32 @@ m365-users -c /ruta/a/otro-config.json list
 m365-users/
 ├── config.example.json     # Plantilla de configuración (sin credenciales reales)
 ├── config.json             # Tu configuración real (gitignoreado)
-├── sample.csv              # CSV de ejemplo para importación
-├── real-csv/               # Archivos Excel reales (gitignoreado — contiene datos privados)
+├── sample.xlsx              # Excel de ejemplo para importación
+├── real-excel/               # Archivos Excel reales (gitignoreado — contiene datos privados)
 ├── package.json
 └── src/
     ├── index.js            # Punto de entrada CLI
     ├── auth.js             # Autenticación (Device Code Flow + caché MSAL cifrada)
     ├── graph.js            # Cliente de Microsoft Graph API (con caché en memoria)
     ├── commands/
-    │   ├── import.js       # Importación masiva desde CSV
+    │   ├── import.js       # Importación masiva desde Excel
     │   ├── search.js       # Búsqueda de usuarios
     │   ├── edit.js         # Editor interactivo
     │   ├── list.js         # Listado con filtros (incluye grupos y ID empleado)
     │   ├── assign-manager.js  # Asignación masiva de manager
-    │   ├── fix.js          # Correcciones de calidad de datos
+    │   ├── fix.js          # Correcciones de calidad de datos (job-titles, org-chart, timezone)
+    │   ├── fix-timezone.js # Corrección masiva de zona horaria de buzón (Romance Standard Time)
     │   ├── validate.js     # Validación del Excel de trabajadores
     │   ├── validate-users.js  # Listado de usuarios con sus grupos
     │   ├── sync-check.js   # Comprobación de sincronización con M365
     │   ├── sync-employee-ids.js  # Sincronización de id_empleado/Tipo → employeeId/employeeType
     │   └── reset-password.js    # Restablecimiento de contraseña con enlace mailto:
     ├── validators/
-    │   └── csv-rules.js    # Reglas de validación del Excel
+    │   └── excel-rules.js    # Reglas de validación del Excel
     └── utils/
         ├── ansi.js         # Eliminación de códigos de escape ANSI
         ├── cache.js        # Caché en memoria para datos de Graph API (usuarios, grupos, etc.)
-        ├── csv.js          # Parseo y validación de CSV
+        ├── excel-importer.js       # Parseo y validación de Excel
         ├── excel.js        # Lectura de archivos .xlsx
         ├── token-store.js  # Almacenamiento cifrado genérico (AES-256-GCM)
         └── upn.js          # Utilidades para UPN

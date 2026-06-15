@@ -14,6 +14,7 @@ import { getGroupName, filterAutoGroups } from '../utils/cache.js';
  * @param {boolean} options.noManager     - Only users without a manager
  * @param {boolean} options.noDepartment  - Only users without a department
  * @param {boolean} options.noJobTitle    - Only users without a job title
+ * @param {boolean} options.neverSignedIn - Only users who have never signed in
  * @param {boolean} options.edit          - Allow editing users from the list interactively
  */
 export async function listCommand(options = {}) {
@@ -64,6 +65,7 @@ export async function listCommand(options = {}) {
   if (options.noManager)    filtered = filtered.filter((u) => !u.manager);
   if (options.noDepartment) filtered = filtered.filter((u) => !u.department || u.department.trim() === '');
   if (options.noJobTitle)   filtered = filtered.filter((u) => !u.jobTitle   || u.jobTitle.trim()   === '');
+  if (options.neverSignedIn) filtered = filtered.filter((u) => !u.signInActivity?.lastSignInDateTime);
 
   if (filtered.length === 0) {
     console.log(chalk.yellow('No users match the specified filters.'));
@@ -75,6 +77,7 @@ export async function listCommand(options = {}) {
   if (options.noManager)    filterLabels.push('no manager');
   if (options.noDepartment) filterLabels.push('no department');
   if (options.noJobTitle)   filterLabels.push('no job title');
+  if (options.neverSignedIn) filterLabels.push('never signed in');
 
   const filterStr = filterLabels.length > 0
     ? chalk.yellow(` [filters: ${filterLabels.join(', ')}]`)
@@ -263,6 +266,8 @@ function printUserTable(users) {
     dept:    20,
     manager: 36,
     groups:  40,
+    lastSignIn: 20,
+    lastPasswordChange: 20,
   };
 
   const totalWidth = Object.values(COL).reduce((a, b) => a + b, 0) + Object.keys(COL).length - 1;
@@ -276,7 +281,9 @@ function printUserTable(users) {
     chalk.bold(pad('Job Title',    COL.title))   + ' ' +
     chalk.bold(pad('Department',   COL.dept))    + ' ' +
     chalk.bold(pad('Manager',      COL.manager)) + ' ' +
-    chalk.bold(pad('Groups',       COL.groups))
+    chalk.bold(pad('Groups',       COL.groups))  + ' ' +
+    chalk.bold(pad('Last Sign-In', COL.lastSignIn)) + ' ' +
+    chalk.bold(pad('Last Pass Change', COL.lastPasswordChange))
   );
   console.log(hr);
 
@@ -290,6 +297,12 @@ function printUserTable(users) {
     const groupsLabel  = u.groups && u.groups.length > 0
       ? u.groups.join(', ')
       : chalk.gray('—');
+    const lastSignInLabel = u.signInActivity?.lastSignInDateTime
+      ? u.signInActivity.lastSignInDateTime.split('T')[0]
+      : chalk.gray('—');
+    const lastPasswordChangeLabel = u.lastPasswordChangeDateTime
+      ? u.lastPasswordChangeDateTime.split('T')[0]
+      : chalk.gray('—');
 
     console.log(
       pad(empIdLabel,                            COL.empId)   + ' ' +
@@ -298,7 +311,9 @@ function printUserTable(users) {
       pad(titleLabel,                            COL.title)   + ' ' +
       pad(deptLabel,                             COL.dept)    + ' ' +
       pad(managerLabel,                          COL.manager) + ' ' +
-      pad(groupsLabel,                           COL.groups)
+      pad(groupsLabel,                           COL.groups)  + ' ' +
+      pad(lastSignInLabel,                       COL.lastSignIn) + ' ' +
+      pad(lastPasswordChangeLabel,               COL.lastPasswordChange)
     );
   }
 

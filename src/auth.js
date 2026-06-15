@@ -168,9 +168,10 @@ async function _deviceCodeFlow(app, scopes) {
       console.log(chalk.cyan('\n========================================'));
       console.log(chalk.bold('  Microsoft 365 Authentication'));
       console.log(chalk.cyan('========================================'));
-      console.log(`\n  1. Open your browser and go to:`);
-      console.log(chalk.underline.blue(`     ${info.verificationUri}`));
-      console.log(`\n  2. Enter the code:`);
+      const fullUrl = `${info.verificationUri}?usercode=${info.userCode}`;
+      console.log(`\n  1. Open your browser and go to (code pre-filled):`);
+      console.log(chalk.underline.blue(`     ${fullUrl}`));
+      console.log(`\n  2. Enter the code (if not already filled):`);
       console.log(chalk.bold.yellow(`     ${info.userCode}`));
       console.log(`\n  3. Sign in with your Microsoft 365 account`);
       console.log(chalk.cyan('\n========================================\n'));

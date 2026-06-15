@@ -29,9 +29,9 @@ coverage/
 *.log
 npm-debug.log*
 
-# User-supplied CSV data files (keep only the sample)
-*.csv
-!sample.csv
+# User-supplied Excel data files (keep only the sample)
+*.xlsx
+!sample.xlsx
 
-# Private CSV data
-real-csv/
+# Private Excel data
+real-excel/

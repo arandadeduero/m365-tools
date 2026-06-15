@@ -1,7 +1,7 @@
 /**
  * sync-check command
  *
- * Reads the employee Excel file from real-csv/ and cross-references it with
+ * Reads the employee Excel file from real-excel/ and cross-references it with
  * Microsoft 365 to detect two categories of sync issues.
  *
  * Check 1 — Must exist in cloud:
@@ -36,8 +36,8 @@ import { readExcel } from '../utils/excel.js';
 import { listAllUsers, updateUser, getUserLicenses, removeAllLicenses } from '../graph.js';
 
 const PACKAGE_ROOT = resolve(fileURLToPath(import.meta.url), '../../../');
-const REAL_CSV_DIR = join(PACKAGE_ROOT, 'real-csv');
-const REQUIRED_DOMAIN = '@arandadeduero.es';
+const REAL_EXCEL_DIR = join(PACKAGE_ROOT, 'real-excel');
+import { REQUIRED_DOMAIN } from '../constants.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -62,16 +62,28 @@ function isEffectiveLeaving(fechaBaja) {
 async function findExcelFile() {
   let entries;
   try {
-    entries = await readdir(REAL_CSV_DIR);
+    entries = await readdir(REAL_EXCEL_DIR);
   } catch {
     throw new Error(
-      `Cannot read directory: ${REAL_CSV_DIR}\n` +
-        '  Make sure the real-csv/ folder exists and contains an .xlsx file.',
+      `Cannot read directory: ${REAL_EXCEL_DIR}\n` +
+        '  Make sure the real-excel/ folder exists and contains an .xlsx file.',
     );
   }
-  const file = entries.find((n) => n.endsWith('.xlsx') && !n.startsWith('~$'));
-  if (!file) throw new Error(`No .xlsx file found in: ${REAL_CSV_DIR}`);
-  return join(REAL_CSV_DIR, file);
+  const files = entries.filter((n) => n.endsWith('.xlsx') && !n.startsWith('~$'));
+  if (files.length === 0) {
+    throw new Error(
+      `No .xlsx file found in: ${REAL_EXCEL_DIR}\n` +
+        '  Add the employee Excel file to the real-excel/ folder.',
+    );
+  }
+  if (files.length > 1) {
+    throw new Error(
+      `Too many .xlsx files found in: ${REAL_EXCEL_DIR}\n` +
+        '  Only one file should exist in the real-excel/ folder.\n' +
+        `  Found: ${files.join(', ')}`,
+    );
+  }
+  return join(REAL_EXCEL_DIR, files[0]);
 }
 
 // ---------------------------------------------------------------------------

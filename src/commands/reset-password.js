@@ -3,6 +3,8 @@ import inquirer from 'inquirer';
 import chalk from 'chalk';
 import { getUser, updateUser } from '../graph.js';
 
+import { DOMAIN } from '../constants.js';
+
 // ---------------------------------------------------------------------------
 // Password generation — readable Word-NNNN-Word format
 // Meets Azure AD complexity: uppercase + lowercase + digit, 12+ chars
@@ -33,7 +35,7 @@ const WORDS = [
   'Yacer', 'Yegua', 'Zarco', 'Zarza', 'Zorro',
 ];
 
-function generatePassword() {
+export function generatePassword() {
   const w1 = WORDS[randomInt(WORDS.length)];
   const w2 = WORDS[randomInt(WORDS.length)];
   const num = String(randomInt(1000, 9999));
@@ -113,6 +115,7 @@ export async function resetPasswordCommand(upn) {
     `username: ${userUpn}`,
     `password: ${newPassword}`,
     `url: https://aytoarandaduero.sharepoint.com/`,
+    `Sigue la guía de bienvenida en este enlace https://aytoarandaduero-my.sharepoint.com/:f:/g/personal/glopez_${DOMAIN.replace('.', '_')}/IgDxAF3YuiHuRILrP8vCkGRnAYrtXe0_jzxtD_l9ZON1CGg?e=86PJVY`,
   ].join('\n');
 
   const mailtoLink =
