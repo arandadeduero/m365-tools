@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 import inquirer from 'inquirer';
+import ora from 'ora';
 import { searchUsers, getUser, getManager } from '../graph.js';
 import { editUser } from './edit.js';
 
@@ -9,14 +10,15 @@ import { editUser } from './edit.js';
  * @param {object} options - { edit: boolean }
  */
 export async function searchCommand(query, options = {}) {
-  console.log(chalk.cyan(`\nSearching for: "${query}"...\n`));
+  const spinner = ora(chalk.cyan(`Searching for: "${query}"...`)).start();
 
   const users = await searchUsers(query);
-
+  
   if (users.length === 0) {
-    console.log(chalk.yellow('No users found matching that query.'));
+    spinner.warn(chalk.yellow('No users found matching that query.'));
     return;
   }
+  spinner.succeed(chalk.cyan(`Found ${users.length} user(s).`));
 
   if (users.length === 1) {
     // Single result: show detail and optionally edit

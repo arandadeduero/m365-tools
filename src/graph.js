@@ -3,12 +3,13 @@ import { getAccessToken } from './auth.js';
 import {
   getCachedUser, setCachedUser, invalidateUser,
   getCachedManager, setCachedManager, invalidateManager,
-  getCachedUserGroups, setCachedUserGroups, invalidateUserGroups,
+  getCachedUserGroups, setCachedUserGroups,   invalidateUserGroups,
   getCachedAllGroups, setCachedAllGroups,
   getCachedDepartments, setCachedDepartments,
   getCachedJobTitles, setCachedJobTitles,
   seedUsers, seedGroupsMap,
   setGroupName,
+  seedLicensesMap, // Added
 } from './utils/cache.js';
 
 /**
@@ -658,6 +659,60 @@ export async function fetchGroupsMap(users, onProgress) {
   }
 
   seedGroupsMap(map);
+  return map;
+}
+
+/**
+ * Fetch licenses for a list of users using Graph $batch (20 per batch).
+ * Returns a Map<userId, Array<{id, skuPartNumber}>>
+ * @param {Array<{id: string}>} users
+ * @param {function} [onProgress]
+ */
+export async function fetchLicensesMap(users, onProgress) {
+  const token = await getAccessToken();
+  const BATCH = 20;
+  const map = new Map();
+
+  for (let i = 0; i < users.length; i += BATCH) {
+    const slice = users.slice(i, i + BATCH);
+
+    const requests = slice.map((u, idx) => ({
+      id: String(idx),
+      method: 'GET',
+      url: `/users/${encodeURIComponent(u.id)}/licenseDetails?$select=skuId,skuPartNumber`,
+    }));
+
+    const resp = await fetch('https://graph.microsoft.com/v1.0/$batch', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ requests }),
+    });
+
+    if (!resp.ok) {
+      const errBody = await resp.json().catch(() => ({}));
+      throw new Error(`Graph $batch failed (${resp.status}): ${errBody?.error?.message || resp.statusText}`);
+    }
+
+    const data = await resp.json();
+
+    for (const res of data.responses ?? []) {
+      const idx = parseInt(res.id, 10);
+      const userId = slice[idx]?.id;
+      if (!userId) continue;
+
+      if (res.status === 200) {
+        map.set(userId, res.body?.value ?? []);
+      } else {
+        map.set(userId, []);
+      }
+    }
+
+    if (onProgress) onProgress(Math.min(i + BATCH, users.length), users.length);
+  }
+
   return map;
 }
 

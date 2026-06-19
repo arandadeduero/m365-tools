@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 import inquirer from 'inquirer';
+import ora from 'ora';
 import {
   listAllJobTitles,
   listAllDepartments,
@@ -34,15 +35,14 @@ export async function assignManagerByJobTitle() {
   let filterLabel;
 
   if (mode === 'jobTitle') {
-    console.log(chalk.cyan('\nFetching all job titles from active users...'));
-    console.log(chalk.gray('  (This may take a moment)\n'));
+    const spinner = ora(chalk.cyan('Fetching all job titles from active users...')).start();
 
     const titles = await listAllJobTitles();
     if (titles.length === 0) {
-      console.log(chalk.yellow('No job titles found in the tenant.'));
+      spinner.warn(chalk.yellow('No job titles found in the tenant.'));
       return;
     }
-    console.log(chalk.gray(`  Found ${titles.length} distinct job title(s).\n`));
+    spinner.succeed(chalk.cyan(`Found ${titles.length} distinct job title(s).`));
 
     const { jobTitle } = await inquirer.prompt([
       {
@@ -55,19 +55,19 @@ export async function assignManagerByJobTitle() {
     ]);
 
     filterLabel = `job title "${jobTitle}"`;
-    console.log(chalk.cyan(`\nFetching users with ${filterLabel}...`));
+    const userSpinner = ora(chalk.cyan(`Fetching users with ${filterLabel}...`)).start();
     users = await getUsersByJobTitle(jobTitle);
+    userSpinner.succeed(chalk.cyan(`Fetched ${users.length} users.`));
 
   } else {
-    console.log(chalk.cyan('\nFetching all departments from active users...'));
-    console.log(chalk.gray('  (This may take a moment)\n'));
+    const spinner = ora(chalk.cyan('Fetching all departments from active users...')).start();
 
     const depts = await listAllDepartments();
     if (depts.length === 0) {
-      console.log(chalk.yellow('No departments found in the tenant.'));
+      spinner.warn(chalk.yellow('No departments found in the tenant.'));
       return;
     }
-    console.log(chalk.gray(`  Found ${depts.length} distinct department(s).\n`));
+    spinner.succeed(chalk.cyan(`Found ${depts.length} distinct department(s).`));
 
     const { department } = await inquirer.prompt([
       {
@@ -80,8 +80,9 @@ export async function assignManagerByJobTitle() {
     ]);
 
     filterLabel = `department "${department}"`;
-    console.log(chalk.cyan(`\nFetching users in ${filterLabel}...`));
+    const userSpinner = ora(chalk.cyan(`Fetching users in ${filterLabel}...`)).start();
     users = await getUsersByDepartment(department);
+    userSpinner.succeed(chalk.cyan(`Fetched ${users.length} users.`));
   }
 
   // Step 3 — show matched users
@@ -141,7 +142,7 @@ export async function assignManagerByJobTitle() {
   }
 
   // Step 7 — bulk assign in parallel batches of 10
-  console.log(chalk.cyan('\nAssigning manager...\n'));
+  const assignSpinner = ora(chalk.cyan('Assigning manager...')).start();
 
   const BATCH = 10;
   const results = { ok: [], failed: [] };
@@ -155,13 +156,13 @@ export async function assignManagerByJobTitle() {
       const u = slice[idx];
       if (r.status === 'fulfilled') {
         results.ok.push(u.userPrincipalName);
-        console.log(chalk.green(`  [OK]     ${u.displayName} <${u.userPrincipalName}>`));
       } else {
         results.failed.push({ upn: u.userPrincipalName, error: r.reason?.message || String(r.reason) });
-        console.log(chalk.red(`  [FAILED] ${u.displayName} <${u.userPrincipalName}>: ${r.reason?.message || r.reason}`));
       }
     });
+    assignSpinner.text = chalk.cyan(`Assigning manager... (${Math.min(i + BATCH, users.length)}/${users.length})`);
   }
+  assignSpinner.succeed(chalk.cyan('Manager assignment complete.'));
 
   // Summary
   console.log(chalk.cyan('\n─────────────────────────────────────────'));

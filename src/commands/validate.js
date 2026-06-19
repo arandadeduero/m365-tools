@@ -1,43 +1,22 @@
 /**
  * validate command
  *
- * Reads the Excel file found in the real-excel/ folder and runs all validation
+ * Reads the Excel file and runs all validation
  * rules defined in src/validators/excel-rules.js, printing a colour-coded report.
  *
  * Usage:
- *   m365-users validate
+ *   m365-users validate <file>
  *
  * Exit codes:
  *   0  — no issues found
  *   1  — one or more validation issues found (or file/read error)
  */
 
-import { readdir } from 'node:fs/promises';
-import { resolve, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import chalk from 'chalk';
-import { readExcel, findExcelFile } from '../utils/excel.js';
+import { readExcel } from '../utils/excel.js';
 import { RULES } from '../validators/excel-rules.js';
 
-// ── 1. Locate file ──────────────────────────────────────────────────────
-async function getFilePath() {
-  try {
-    return await findExcelFile();
-  } catch (err) {
-    throw err;
-  }
-}
-
-export async function validateCommand() {
-  // ── 1. Locate file ──────────────────────────────────────────────────────
-  let filePath;
-  try {
-    filePath = await getFilePath();
-  } catch (err) {
-    console.error(chalk.red(`\nError: ${err.message}`));
-    process.exit(1);
-  }
-
+export async function validateCommand(filePath) {
   console.log(chalk.gray(`\nReading: ${filePath}`));
 
   // ── 2. Parse ─────────────────────────────────────────────────────────────

@@ -21,6 +21,7 @@
 
 import chalk from 'chalk';
 import inquirer from 'inquirer';
+import ora from 'ora';
 import { listAllUsers, fetchGroupsMap, searchUsers, searchGroups, addMemberToGroup } from '../graph.js';
 import { filterAutoGroups } from '../utils/cache.js';
 
@@ -232,29 +233,27 @@ async function runFixGroupsByManager(users, groupsMap) {
 
 export async function validateUsersCommand({ empty = false, fixGroupsByManager = false } = {}) {
   // ── 1. Fetch all users ────────────────────────────────────────────────────
-  console.log(chalk.gray('\nFetching users from Microsoft 365…'));
+  const userSpinner = ora(chalk.cyan('Fetching users from Microsoft 365…')).start();
 
   let users;
   try {
     users = await listAllUsers({ checkManager: true, onProgress: () => {} });
   } catch (err) {
-    console.error(chalk.red(`\nFailed to fetch users: ${err.message}`));
+    userSpinner.fail(chalk.red(`\nFailed to fetch users: ${err.message}`));
     process.exit(1);
   }
 
   users.sort((a, b) => (a.displayName ?? '').localeCompare(b.displayName ?? '', 'es'));
-
-  console.log(chalk.gray(`Found ${users.length} user(s). Fetching group memberships…\n`));
+  userSpinner.succeed(chalk.cyan(`Found ${users.length} user(s).`));
 
   // ── 2. Fetch group memberships in batch ───────────────────────────────────
+  const groupSpinner = ora(chalk.cyan('Fetching group memberships…')).start();
   let groupsMap;
   try {
-    groupsMap = await fetchGroupsMap(users, (current, total) => {
-      process.stdout.write(`\r${chalk.gray(`  Groups fetched for ${current}/${total} users…`)}`);
-    });
-    process.stdout.write('\r' + ' '.repeat(60) + '\r');
+    groupsMap = await fetchGroupsMap(users);
+    groupSpinner.succeed(chalk.cyan('Fetched group memberships.'));
   } catch (err) {
-    console.error(chalk.red(`\nFailed to fetch group memberships: ${err.message}`));
+    groupSpinner.fail(chalk.red(`\nFailed to fetch group memberships: ${err.message}`));
     process.exit(1);
   }
 

@@ -1,7 +1,7 @@
 /**
  * sync-check command
  *
- * Reads the employee Excel file from real-excel/ and cross-references it with
+ * Reads the employee Excel file from path and cross-references it with
  * Microsoft 365 to detect two categories of sync issues.
  *
  * Check 1 — Must exist in cloud:
@@ -19,24 +19,19 @@
  *   assigned licences.
  *
  * Usage:
- *   m365-users sync-check
- *   m365-users sync-check --disable-left-workers
+ *   m365-users sync-check <file>
+ *   m365-users sync-check <file> --disable-left-workers
  *
  * Exit codes:
  *   0  — everything is in sync (or all fixes applied successfully)
  *   1  — issues found / fix aborted / error
  */
 
-import { join, resolve } from 'node:path';
-import { readdir } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
+import ora from 'ora';
 import { readExcel } from '../utils/excel.js';
 import { listAllUsers, updateUser, getUserLicenses, removeAllLicenses } from '../graph.js';
-
-const PACKAGE_ROOT = resolve(fileURLToPath(import.meta.url), '../../../');
-const REAL_EXCEL_DIR = join(PACKAGE_ROOT, 'real-excel');
 import { REQUIRED_DOMAIN } from '../constants.js';
 
 // ---------------------------------------------------------------------------
@@ -57,33 +52,6 @@ function isEffectiveLeaving(fechaBaja) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   return date <= today;
-}
-
-async function findExcelFile() {
-  let entries;
-  try {
-    entries = await readdir(REAL_EXCEL_DIR);
-  } catch {
-    throw new Error(
-      `Cannot read directory: ${REAL_EXCEL_DIR}\n` +
-        '  Make sure the real-excel/ folder exists and contains an .xlsx file.',
-    );
-  }
-  const files = entries.filter((n) => n.endsWith('.xlsx') && !n.startsWith('~$'));
-  if (files.length === 0) {
-    throw new Error(
-      `No .xlsx file found in: ${REAL_EXCEL_DIR}\n` +
-        '  Add the employee Excel file to the real-excel/ folder.',
-    );
-  }
-  if (files.length > 1) {
-    throw new Error(
-      `Too many .xlsx files found in: ${REAL_EXCEL_DIR}\n` +
-        '  Only one file should exist in the real-excel/ folder.\n' +
-        `  Found: ${files.join(', ')}`,
-    );
-  }
-  return join(REAL_EXCEL_DIR, files[0]);
 }
 
 // ---------------------------------------------------------------------------
@@ -232,16 +200,7 @@ async function fixNotDisabled(notDisabled) {
 // Main
 // ---------------------------------------------------------------------------
 
-export async function syncCheckCommand({ fix = false } = {}) {
-  // ── 1. Load Excel ──────────────────────────────────────────────────────────
-  let filePath;
-  try {
-    filePath = await findExcelFile();
-  } catch (err) {
-    console.error(chalk.red(`\nError: ${err.message}`));
-    process.exit(1);
-  }
-
+export async function syncCheckCommand(filePath, { fix = false } = {}) {
   console.log(chalk.gray(`\nReading: ${filePath}`));
 
   let rows;
@@ -284,21 +243,20 @@ export async function syncCheckCommand({ fix = false } = {}) {
   );
 
   // ── 3. Fetch cloud users ───────────────────────────────────────────────────
-  console.log(chalk.gray('Fetching users from Microsoft 365…'));
+  const spinner = ora(chalk.cyan('Fetching users from Microsoft 365…')).start();
 
   let cloudUsers;
   try {
     cloudUsers = await listAllUsers({ onProgress: () => {} });
   } catch (err) {
-    console.error(chalk.red(`\nFailed to fetch users from M365: ${err.message}`));
+    spinner.fail(chalk.red(`\nFailed to fetch users from M365: ${err.message}`));
     process.exit(1);
   }
+  spinner.succeed(chalk.cyan(`Cloud: ${cloudUsers.length} user(s) found.`));
 
   const cloudMap = new Map(
     cloudUsers.map((u) => [u.userPrincipalName.toLowerCase(), u]),
   );
-
-  console.log(chalk.gray(`Cloud: ${cloudMap.size} user(s) found.\n`));
 
   // ── 4. Run checks ──────────────────────────────────────────────────────────
   const missing = [];

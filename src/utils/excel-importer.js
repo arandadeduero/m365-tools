@@ -59,7 +59,8 @@ function normalizeRow(row, domain) {
     'id_empleado': 'employeeId',
     'Departamento': 'department',
     'Trabajador': 'displayName',
-    'Descripción': 'jobTitle', // Mapping Description to jobTitle for now
+    'Descripción': 'jobTitle',
+    'descripción': 'jobTitle',
     'Fecha de Alta': 'employeeHireDate',
     'e_mail': 'userPrincipalName',
     'ID responsable': 'manager',

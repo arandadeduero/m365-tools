@@ -1,7 +1,7 @@
 import chalk from 'chalk';
+import ora from 'ora';
 import { parseExcel, rowToUserPayload, stripPasswordFromPayload } from '../utils/excel-importer.js';
 import { createUser, updateUser, findUserByUpn, setManager, listAllUsers, getUserLicenses, getManager } from '../graph.js';
-import { findExcelFile } from '../utils/excel.js';
 import { getDomain } from '../auth.js';
 import { generatePassword } from './reset-password.js';
 
@@ -34,22 +34,18 @@ function getChanges(payload, existing) {
  * Import users from a CSV file. Creates or updates users (upsert).
  * After creating/updating, assigns the manager if provided.
  *
- * @param {string|null} filePath - Path to the CSV file or null to auto-find in real-excel/
+ * @param {string} filePath - Absolute path to the Excel file
  * @param {object} options - Command options
  */
 export async function importUsers(filePath, options = {}) {
-  let path = filePath;
-  if (!path) {
-    path = await findExcelFile();
-  }
   const domain = getDomain();
-  console.log(chalk.cyan(`\nParsing CSV: ${path}\n`));
+  console.log(chalk.cyan(`\nParsing Excel: ${filePath}\n`));
 
-  const { rows, errors } = await parseExcel(path, domain);
+  const { rows, errors } = await parseExcel(filePath, domain);
 
-  // Load all users to map employeeId to userId for manager assignment
-  console.log(chalk.gray('Loading M365 user list to resolve managers...'));
+  const userSpinner = ora(chalk.cyan('Loading M365 user list to resolve managers...')).start();
   const allUsers = await listAllUsers();
+  userSpinner.succeed(chalk.cyan(`Loaded ${allUsers.length} users.`));
 
   // Create a map of EmployeeID -> M365 User Object for fast lookup
   const employeeIdToUserMap = new Map();
@@ -58,8 +54,6 @@ export async function importUsers(filePath, options = {}) {
       employeeIdToUserMap.set(user.employeeId, user);
     }
   }
-
-  console.log(chalk.gray(`Loaded ${allUsers.length} users.\n`));
 
   // Report parse/validation errors
   if (errors.length > 0) {
@@ -162,14 +156,21 @@ export async function importUsers(filePath, options = {}) {
           // ignore
         }
 
-        console.log(chalk.gray(`           Manager: Cloud=${currentManager?.userPrincipalName || '(none)'} | Excel=${managerUpn}`));
+        // Check if manager is already set correctly
+        const isManagerAlreadySet = isEmployeeId
+          ? currentManager?.id === managerM365Id
+          : currentManager?.userPrincipalName?.toLowerCase() === managerUpn.toLowerCase();
 
-        try {
-          await setManager(userId, managerUpn, managerM365Id);
-          console.log(chalk.gray(`           Manager set: ${managerUpn} (resolved to ${managerM365Id || 'UPN'})`));
-        } catch (managerErr) {
-          results.managerErrors.push({ upn, manager: managerUpn, error: managerErr.message });
-          console.log(chalk.yellow(`           Warning: Could not set manager ${managerUpn}: ${managerErr.message}`));
+        if (!isManagerAlreadySet) {
+          console.log(chalk.gray(`           Manager: Cloud=${currentManager?.userPrincipalName || '(none)'} | Excel=${managerUpn}`));
+
+          try {
+            await setManager(userId, managerUpn, managerM365Id);
+            console.log(chalk.gray(`           Manager set: ${managerUpn} (resolved to ${managerM365Id || 'UPN'})`));
+          } catch (managerErr) {
+            results.managerErrors.push({ upn, manager: managerUpn, error: managerErr.message });
+            console.log(chalk.yellow(`           Warning: Could not set manager ${managerUpn}: ${managerErr.message}`));
+          }
         }
       }
 

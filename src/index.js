@@ -2,7 +2,7 @@
 
 import { program } from 'commander';
 import { readFile, access } from 'node:fs/promises';
-import { resolve, join } from 'node:path';
+import { resolve } from 'node:path';
 import chalk from 'chalk';
 import { initAuth, login, logout, getDomain } from './auth.js';
 import { normalizeUpn } from './utils/upn.js';
@@ -18,7 +18,6 @@ import { validateUsersCommand } from './commands/validate-users.js';
 import { syncEmployeeIdsCommand } from './commands/sync-employee-ids.js';
 import { resetPasswordCommand } from './commands/reset-password.js';
 import { REQUIRED_DOMAIN } from './constants.js';
-import { REAL_EXCEL_DIR } from './utils/excel.js';
 import pkg from '../package.json' with { type: 'json' };
 
 // ---------------------------------------------------------------------------
@@ -114,10 +113,9 @@ program
 // ---------------------------------------------------------------------------
 
 program
-  .command('import [excelFile]')
+  .command('import <excelFile>')
   .description(
     'Batch import users from an Excel file. Creates new users and updates existing ones.\n' +
-    '  If no file is provided, it looks for the file in the real-excel/ folder.\n' +
     '  Required columns: userPrincipalName, displayName, mailNickname\n' +
     '  Optional columns: givenName, surname, jobTitle, department, manager, ...'
   )
@@ -127,9 +125,7 @@ program
     const config = await loadConfig(opts.config);
     initAuth(config);
     try {
-      // If a file is provided, treat it as relative to the real-excel/ folder
-      const path = excelFile ? join(REAL_EXCEL_DIR, excelFile) : null;
-      await importUsers(path, options);
+      await importUsers(resolve(excelFile), options);
     } catch (err) {
       handleError(err);
     }
@@ -166,6 +162,7 @@ program
    .option('--missing-department', 'Only show users without a department')
    .option('--missing-job-title', 'Only show users without a job title')
    .option('--never-signed-in', 'Only show users who have never signed in')
+   .option('--for-mailing', 'List all users with actual license, joined by ";"')
    .option('-e, --edit', 'Select a user from the list to edit interactively')
    .action(async (options) => {
      const opts = program.opts();
@@ -178,6 +175,7 @@ program
          noDepartment:  !!options.missingDepartment,
          noJobTitle:    !!options.missingJobTitle,
          neverSignedIn: !!options.neverSignedIn,
+         forMailing:    !!options.forMailing,
          edit:          !!options.edit,
        });
      } catch (err) {
@@ -342,20 +340,20 @@ program
 // ---------------------------------------------------------------------------
 
 program
-  .command('sync-check')
+  .command('sync-check <excelFile>')
   .description(
-    'Cross-reference the employee Excel file (real-excel/) with Microsoft 365 and report sync issues.\n' +
+    'Cross-reference the employee Excel file with Microsoft 365 and report sync issues.\n' +
     `  Check 1: Active employees (${REQUIRED_DOMAIN}, no Fecha de Baja) must have an M365 account.\n` +
     '  Check 2: Employees with a Fecha de Baja must have their cloud account disabled.\n' +
     '  Use --disable-left-workers to disable and unlicense Check 2 accounts (with double confirmation).'
   )
   .option('--disable-left-workers', 'Disable and remove licences from accounts that should be disabled (Check 2)')
-  .action(async (options) => {
+  .action(async (excelFile, options) => {
     const opts = program.opts();
     const config = await loadConfig(opts.config);
     initAuth(config);
     try {
-      await syncCheckCommand({ fix: !!options.disableLeftWorkers });
+      await syncCheckCommand(resolve(excelFile), { fix: !!options.disableLeftWorkers });
     } catch (err) {
       handleError(err);
     }
@@ -366,18 +364,18 @@ program
 // ---------------------------------------------------------------------------
 
 program
-  .command('sync-employee-ids')
+  .command('sync-employee-ids <excelFile>')
   .description(
-    'Lee id_empleado del Excel (real-excel/) y lo escribe en el campo employeeId de cada usuario en M365.\n' +
+    'Lee id_empleado del Excel y lo escribe en el campo employeeId de cada usuario en M365.\n' +
     '  El Excel es la fuente de verdad: siempre sobreescribe el valor en la nube.\n' +
     '  La coincidencia se hace por email (e_mail → userPrincipalName).'
   )
-  .action(async () => {
+  .action(async (excelFile) => {
     const opts = program.opts();
     const config = await loadConfig(opts.config);
     initAuth(config);
     try {
-      await syncEmployeeIdsCommand();
+      await syncEmployeeIdsCommand(resolve(excelFile));
     } catch (err) {
       handleError(err);
     }
@@ -388,15 +386,15 @@ program
 // ---------------------------------------------------------------------------
 
 program
-  .command('validate')
+  .command('validate <excelFile>')
   .description(
-    'Validate the employee Excel file in real-excel/ against a set of data quality rules.\n' +
+    'Validate the employee Excel file against a set of data quality rules.\n' +
     '  Checks: id_empleado (required, unique), e_mail (required, correct domain),\n' +
     '          id_responsable (must reference a known id_empleado).'
   )
-  .action(async () => {
+  .action(async (excelFile) => {
     try {
-      await validateCommand();
+      await validateCommand(resolve(excelFile));
     } catch (err) {
       handleError(err);
     }

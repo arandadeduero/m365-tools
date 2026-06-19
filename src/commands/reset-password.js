@@ -1,6 +1,7 @@
 import { randomInt } from 'node:crypto';
 import inquirer from 'inquirer';
 import chalk from 'chalk';
+import ora from 'ora';
 import { getUser, updateUser } from '../graph.js';
 
 import { DOMAIN } from '../constants.js';
@@ -52,9 +53,9 @@ export function generatePassword() {
  */
 export async function resetPasswordCommand(upn) {
   // 1. Resolve user
-  process.stdout.write(chalk.gray('  Looking up user...\r'));
+  const spinner = ora(chalk.cyan('Looking up user...')).start();
   const user = await getUser(upn);
-  process.stdout.write(' '.repeat(30) + '\r');
+  spinner.stop();
 
   if (!user) {
     console.error(chalk.red(`\nUser not found: ${upn}`));
@@ -94,6 +95,7 @@ export async function resetPasswordCommand(upn) {
   }
 
   // 5. Apply the password reset via Graph API
+  const resetSpinner = ora(chalk.cyan('Applying password reset...')).start();
   try {
     await updateUser(userUpn, {
       passwordProfile: {
@@ -101,8 +103,9 @@ export async function resetPasswordCommand(upn) {
         forceChangePasswordNextSignIn: true,
       },
     });
+    resetSpinner.succeed(chalk.cyan('Password reset applied.'));
   } catch (err) {
-    console.error(chalk.red(`\nFailed to reset password: ${err.message || err}`));
+    resetSpinner.fail(chalk.red(`\nFailed to reset password: ${err.message || err}`));
     process.exit(1);
   }
 

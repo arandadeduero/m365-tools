@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 import inquirer from 'inquirer';
+import ora from 'ora';
 import { listAllUsers, updateUser, fetchManagerMap, setManager, getUser } from '../graph.js';
 import { getDomain } from '../auth.js';
 import { normalizeUpn } from '../utils/upn.js';
@@ -21,21 +22,12 @@ function toSentenceCase(str) {
  * Shows a preview table, lets the user pick which ones to apply, then confirms twice.
  */
 export async function fixJobTitles() {
-  console.log(chalk.cyan('\nFetching all active users with a job title...\n'));
+  const spinner = ora(chalk.cyan('Fetching all active users with a job title...')).start();
 
-  let lastPrint = 0;
   const allUsers = await listAllUsers({
     onlyDisabled: false,
     checkManager: false,
-    onProgress: (count) => {
-      if (count - lastPrint >= 100) {
-        process.stdout.write(chalk.gray(`\r  Fetched ${count} users...`));
-        lastPrint = count;
-      }
-    },
   });
-
-  process.stdout.write('\r' + ' '.repeat(50) + '\r');
 
   // Keep only users whose jobTitle would actually change
   const candidates = allUsers
@@ -50,13 +42,10 @@ export async function fixJobTitles() {
     .filter((u) => u.original !== u.fixed);
 
   if (candidates.length === 0) {
-    console.log(chalk.green('All job titles are already in Sentence case. Nothing to do.'));
+    spinner.succeed(chalk.green('All job titles are already in Sentence case. Nothing to do.'));
     return;
   }
-
-  // Preview table
-  printPreviewTable(candidates);
-  console.log(chalk.cyan(`${candidates.length} user(s) would be updated.\n`));
+  spinner.succeed(chalk.cyan(`Found ${candidates.length} candidates.`));
 
   // Step 1 — let user pick which ones to apply (all selected by default)
   const { selected } = await inquirer.prompt([
@@ -116,7 +105,7 @@ export async function fixJobTitles() {
   }
 
   // Apply in batches of 10
-  console.log(chalk.cyan('\nApplying changes...\n'));
+  const applySpinner = ora(chalk.cyan('Applying changes...')).start();
 
   const BATCH = 10;
   const results = { ok: [], failed: [] };
@@ -130,22 +119,13 @@ export async function fixJobTitles() {
       const u = slice[idx];
       if (r.status === 'fulfilled') {
         results.ok.push(u);
-        console.log(
-          chalk.green('  [OK]    ') +
-          chalk.bold(pad(u.displayName, 30)) + '  ' +
-          chalk.red(pad(u.original, 30)) + ' → ' +
-          chalk.green(u.fixed)
-        );
       } else {
         results.failed.push({ ...u, error: r.reason?.message || String(r.reason) });
-        console.log(
-          chalk.red('  [FAIL]  ') +
-          chalk.bold(pad(u.displayName, 30)) + '  ' +
-          chalk.red(r.reason?.message || r.reason)
-        );
       }
     }
+    applySpinner.text = chalk.cyan(`Applying changes... (${Math.min(i + BATCH, toApply.length)}/${toApply.length})`);
   }
+  applySpinner.succeed(chalk.cyan('Changes applied.'));
 
   // Summary
   console.log(chalk.cyan('\n─────────────────────────────────────────'));
@@ -212,36 +192,21 @@ function pad(str, len) {
  */
 export async function fixOrgChart() {
   // ── Step 1: fetch all active users ────────────────────────────────────────
-  console.log(chalk.cyan('\nFetching all active users...'));
-  let lastPrint = 0;
+  const userSpinner = ora(chalk.cyan('Fetching all active users...')).start();
   const users = await listAllUsers({
     onlyDisabled: false,
     checkManager: false,
-    onProgress: (n) => {
-      if (n - lastPrint >= 100) {
-        process.stdout.write(chalk.gray(`\r  Fetched ${n} users...`));
-        lastPrint = n;
-      }
-    },
   });
-  process.stdout.write('\r' + ' '.repeat(50) + '\r');
-  console.log(chalk.gray(`  ${users.length} active users loaded.\n`));
+  userSpinner.succeed(chalk.cyan(`Loaded ${users.length} active users.`));
 
   // Build lookup maps
   const byId  = new Map(users.map((u) => [u.id, u]));
   const byUpn = new Map(users.map((u) => [u.userPrincipalName, u]));
 
   // ── Step 2: fetch manager for every user via $batch ───────────────────────
-  console.log(chalk.cyan('Fetching manager relationships ($batch)...'));
-  lastPrint = 0;
-  const managerMap = await fetchManagerMap(users, (done, total) => {
-    if (done - lastPrint >= 50) {
-      process.stdout.write(chalk.gray(`\r  Processed ${done}/${total}...`));
-      lastPrint = done;
-    }
-  });
-  process.stdout.write('\r' + ' '.repeat(50) + '\r');
-  console.log(chalk.gray('  Manager relationships loaded.\n'));
+  const managerSpinner = ora(chalk.cyan('Fetching manager relationships ($batch)...')).start();
+  const managerMap = await fetchManagerMap(users);
+  managerSpinner.succeed(chalk.cyan('Manager relationships loaded.'));
 
   // ── Step 3: ask for the expected root UPN ─────────────────────────────────
   const domain = getDomain();

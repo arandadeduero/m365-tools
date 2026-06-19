@@ -100,12 +100,12 @@ Importa o actualiza usuarios en masa desde un archivo Excel.
 
 ```bash
 m365-users import usuarios.xlsx
+
+# Limitar el número de usuarios a procesar (útil para pruebas)
+m365-users import usuarios.xlsx --limit 5
 ```
 
-- Si el usuario **no existe**: lo crea.
-- Si el usuario **ya existe**: lo actualiza (sin tocar la contraseña).
-- Si la columna `manager` está presente: asigna el manager al final.
-- La operación es **idempotente**: puedes ejecutarla varias veces de forma segura.
+- `--limit <number>`: Limita la cantidad de usuarios del archivo que se procesarán en esta ejecución.
 
 #### Formato del archivo Excel
 
@@ -151,7 +151,7 @@ Si hay varios resultados, muestra un selector interactivo. Con `--edit` se abre 
 
 ### `list`
 
-Lista todos los usuarios activos del directorio en una tabla con las siguientes columnas: **ID empleado**, **UPN**, **Nombre**, **Puesto**, **Departamento**, **Manager** y **Grupos**.
+Lista todos los usuarios activos del directorio en una tabla con las siguientes columnas: **ID empleado**, **UPN**, **Nombre**, **Puesto**, **Departamento**, **Manager**, **Grupos**, **Licenses** y **Fechas**.
 
 Los grupos automáticos (`Todo Ayuntamiento`, `Todos los usuarios`, `Expertos 365`) se filtran siempre de la columna Grupos.
 
@@ -166,9 +166,19 @@ m365-users list --missing-manager
 m365-users list --missing-department
 m365-users list --missing-job-title
 
+# Filtrar usuarios que nunca han iniciado sesión
+m365-users list --never-signed-in
+
+# Generar lista de correos de usuarios con licencia (separados por ;)
+m365-users list --for-mailing
+
 # Combinar filtro con edición interactiva
 m365-users list --missing-manager --edit
 ```
+
+- `--for-mailing`: En lugar de mostrar la tabla, lista los UPNs de todos los usuarios que tienen al menos una licencia asignada, separados por `;`.
+- `--never-signed-in`: Muestra únicamente los usuarios que nunca han iniciado sesión en el tenant.
+- `--edit`: Abre el editor interactivo para los usuarios filtrados.
 
 ---
 
@@ -283,14 +293,16 @@ Los usuarios sin buzón de Exchange (sin licencia de Outlook/M365) se detectan a
 
 **Opción `--dry-run`:** muestra la previsualización completa pero no realiza ninguna llamada de escritura a la API.
 
+**Opción `--debug`:** imprime por consola la respuesta cruda de la API `mailboxSettings` para cada usuario (útil para diagnosticar problemas de permisos o respuestas inesperadas).
+
 ---
 
-### `validate`
+### `validate <archivo.xlsx>`
 
-Lee el archivo Excel de la carpeta `real-csv/` y comprueba la calidad de los datos según un conjunto de reglas. No requiere conexión a Microsoft 365. Sale con código `1` si se encuentran problemas, `0` si todo es correcto.
+Comprueba la calidad de los datos según un conjunto de reglas. No requiere conexión a Microsoft 365. Sale con código `1` si se encuentran problemas, `0` si todo es correcto.
 
 ```bash
-m365-users validate
+m365-users validate usuarios.xlsx
 ```
 
 **Reglas aplicadas:**
@@ -354,12 +366,12 @@ m365-users validate-users --fix-groups-by-manager
 
 ---
 
-### `sync-check`
+### `sync-check <archivo.xlsx>`
 
-Cruza el archivo Excel de `real-csv/` con los usuarios reales de Microsoft 365 y detecta desincronizaciones. Solo lectura por defecto.
+Cruza el archivo Excel con los usuarios reales de Microsoft 365 y detecta desincronizaciones. Solo lectura por defecto.
 
 ```bash
-m365-users sync-check
+m365-users sync-check usuarios.xlsx
 ```
 
 **Check 1a — Cuentas que deben existir en la nube:**
@@ -389,14 +401,12 @@ Las cuentas que no se encuentran en la nube se muestran en la previsualización 
 
 ---
 
-### `sync-employee-ids`
+### `sync-employee-ids <archivo.xlsx>`
 
-Lee las columnas `id_empleado` y `Tipo de empleado` del archivo Excel en `real-csv/` y las escribe en los campos `employeeId` y `employeeType` de cada usuario en Microsoft 365 en una sola pasada. El Excel es la fuente de verdad: los valores siempre se sobreescriben.
-
-La coincidencia entre el Excel y la nube se hace por email (`e_mail` → `userPrincipalName`).
+Lee las columnas `id_empleado` y `Tipo de empleado` del archivo Excel y las escribe en los campos `employeeId` y `employeeType` de cada usuario en Microsoft 365. El Excel es la fuente de verdad.
 
 ```bash
-m365-users sync-employee-ids
+m365-users sync-employee-ids usuarios.xlsx
 ```
 
 **Valores permitidos para `Tipo de empleado`:** `Funcionario`, `Laboral`.  
@@ -461,10 +471,9 @@ m365-users -c /ruta/a/otro-config.json list
 
 ```
 m365-users/
+├── sample.xlsx              # Excel de ejemplo para importación
 ├── config.example.json     # Plantilla de configuración (sin credenciales reales)
 ├── config.json             # Tu configuración real (gitignoreado)
-├── sample.xlsx              # Excel de ejemplo para importación
-├── real-excel/               # Archivos Excel reales (gitignoreado — contiene datos privados)
 ├── package.json
 └── src/
     ├── index.js            # Punto de entrada CLI

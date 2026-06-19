@@ -1,6 +1,7 @@
 import chalk from 'chalk';
 import inquirer from 'inquirer';
-import { listAllUsers, getUser, updateUser, setManager as graphSetManager, getManager, fetchGroupsMap } from '../graph.js';
+import ora from 'ora';
+import { listAllUsers, getUser, updateUser, setManager as graphSetManager, getManager, fetchGroupsMap, fetchLicensesMap, getUserLicenses } from '../graph.js';
 import { editUser, editSection, FIELD_GROUPS } from './edit.js';
 import { printUserCard } from './search.js';
 import { stripAnsi } from '../utils/ansi.js';
@@ -15,6 +16,7 @@ import { getGroupName, filterAutoGroups } from '../utils/cache.js';
  * @param {boolean} options.noDepartment  - Only users without a department
  * @param {boolean} options.noJobTitle    - Only users without a job title
  * @param {boolean} options.neverSignedIn - Only users who have never signed in
+ * @param {boolean} options.forMailing    - List all users with actual license, joined by ";"
  * @param {boolean} options.edit          - Allow editing users from the list interactively
  */
 export async function listCommand(options = {}) {
@@ -22,42 +24,63 @@ export async function listCommand(options = {}) {
     ? chalk.red('disabled users')
     : chalk.green('active users');
 
-  console.log(chalk.cyan('\nFetching users from Microsoft 365...'));
-  console.log(chalk.gray(`  Mode: ${modeLabel}`));
-  console.log(chalk.gray('  (Fetching manager info — may take a moment for large tenants)\n'));
+  const spinner = ora(chalk.cyan(`Fetching ${modeLabel} from Microsoft 365...`)).start();
 
-  let lastPrint = 0;
   const users = await listAllUsers({
     onlyDisabled: !!options.disabled,
-    checkManager: true,
-    onProgress: (count) => {
-      if (count - lastPrint >= 50) {
-        process.stdout.write(chalk.gray(`\r  Processed ${count} users...`));
-        lastPrint = count;
-      }
-    },
+    checkManager: !options.forMailing,
   });
 
-  process.stdout.write('\r' + ' '.repeat(50) + '\r');
+  spinner.succeed(chalk.cyan(`Fetched ${users.length} users.`));
+
+  // If --for-mailing, we need to fetch licenses
+  if (options.forMailing) {
+    const licSpinner = ora(chalk.cyan('Fetching licenses for mailing list...')).start();
+    for (const user of users) {
+      if (!user.userPrincipalName) {
+        user.hasLicense = false;
+        continue;
+      }
+      try {
+        const licenses = await getUserLicenses(user.userPrincipalName);
+        user.hasLicense = licenses.length > 0;
+      } catch {
+        user.hasLicense = false;
+      }
+    }
+
+    const emails = users
+      .filter(u => u.hasLicense && u.userPrincipalName)
+      .map(u => u.userPrincipalName);
+    
+    if (emails.length === 0) {
+      licSpinner.warn(chalk.yellow('No licensed users found.'));
+    } else {
+      licSpinner.succeed(chalk.green('Licensed users:'));
+      console.log(chalk.green(emails.join(';')));
+    }
+    return;
+  }
 
   // Fetch group memberships for all users in one $batch pass.
-  // Results are cached in _groupNameCache (groupId → displayName) so re-running
-  // the command in the same process never re-fetches the same group name.
-  process.stdout.write(chalk.gray('  Fetching group memberships...\r'));
-  lastPrint = 0;
-  const groupsMap = await fetchGroupsMap(users, (done, total) => {
-    if (done - lastPrint >= 50) {
-      process.stdout.write(chalk.gray(`\r  Fetching groups: ${done}/${total}...`));
-      lastPrint = done;
-    }
-  });
-  process.stdout.write('\r' + ' '.repeat(60) + '\r');
+  const groupSpinner = ora(chalk.cyan('Fetching group memberships...')).start();
+  const groupsMap = await fetchGroupsMap(users);
+  groupSpinner.succeed(chalk.cyan('Fetched group memberships.'));
 
   // Populate group name cache and attach groups array to each user,
   // filtering out auto-assigned noise groups (Todos los usuarios, etc.)
   for (const user of users) {
     const groups = filterAutoGroups(groupsMap.get(user.id) ?? []);
     user.groups = groups.map((g) => getGroupName(g.id) ?? g.displayName);
+  }
+
+  // Fetch licenses for all users
+  const licSpinner = ora(chalk.cyan('Fetching licenses...')).start();
+  const licensesMap = await fetchLicensesMap(users);
+  licSpinner.succeed(chalk.cyan('Fetched licenses.'));
+
+  for (const user of users) {
+    user.licenses = licensesMap.get(user.id) ?? [];
   }
 
   // Client-side filters
@@ -255,7 +278,7 @@ async function quickEditSection(identifier, sectionName) {
 }
 
 /**
- * Print users as a formatted table including employee ID, manager, and groups.
+ * Print users as a formatted table including employee ID, manager, groups, and licenses.
  */
 function printUserTable(users) {
   const COL = {
@@ -266,6 +289,7 @@ function printUserTable(users) {
     dept:    20,
     manager: 36,
     groups:  40,
+    licenses: 30, // Added
     lastSignIn: 20,
     lastPasswordChange: 20,
   };
@@ -282,6 +306,7 @@ function printUserTable(users) {
     chalk.bold(pad('Department',   COL.dept))    + ' ' +
     chalk.bold(pad('Manager',      COL.manager)) + ' ' +
     chalk.bold(pad('Groups',       COL.groups))  + ' ' +
+    chalk.bold(pad('Licenses',     COL.licenses)) + ' ' +
     chalk.bold(pad('Last Sign-In', COL.lastSignIn)) + ' ' +
     chalk.bold(pad('Last Pass Change', COL.lastPasswordChange))
   );
@@ -296,6 +321,9 @@ function printUserTable(users) {
       : chalk.red('(none)');
     const groupsLabel  = u.groups && u.groups.length > 0
       ? u.groups.join(', ')
+      : chalk.gray('—');
+    const licensesLabel = u.licenses && u.licenses.length > 0
+      ? u.licenses.map(l => l.skuPartNumber).join(', ')
       : chalk.gray('—');
     const lastSignInLabel = u.signInActivity?.lastSignInDateTime
       ? u.signInActivity.lastSignInDateTime.split('T')[0]
@@ -312,6 +340,7 @@ function printUserTable(users) {
       pad(deptLabel,                             COL.dept)    + ' ' +
       pad(managerLabel,                          COL.manager) + ' ' +
       pad(groupsLabel,                           COL.groups)  + ' ' +
+      pad(licensesLabel,                         COL.licenses) + ' ' +
       pad(lastSignInLabel,                       COL.lastSignIn) + ' ' +
       pad(lastPasswordChangeLabel,               COL.lastPasswordChange)
     );

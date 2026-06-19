@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 import inquirer from 'inquirer';
+import ora from 'ora';
 import { listAllUsers, getMailboxTzSettings, setMailboxTzSettings } from '../graph.js';
 import { getAccessToken } from '../auth.js';
 import { stripAnsi } from '../utils/ansi.js';
@@ -57,26 +58,18 @@ export async function fixTimezone({ dryRun = false, debug = false } = {}) {
     }
   }
 
-  console.log(chalk.cyan('\nFetching all active users...\n'));
+  const userSpinner = ora(chalk.cyan('Fetching all active users...')).start();
 
-  let lastPrint = 0;
   const allUsers = await listAllUsers({
     onlyDisabled: false,
     checkManager: false,
-    onProgress: (count) => {
-      if (count - lastPrint >= 100) {
-        process.stdout.write(chalk.gray(`\r  Fetched ${count} users...`));
-        lastPrint = count;
-      }
-    },
   });
 
-  process.stdout.write('\r' + ' '.repeat(50) + '\r');
-  console.log(chalk.gray(`  ${allUsers.length} active users loaded.\n`));
+  userSpinner.succeed(chalk.cyan(`Loaded ${allUsers.length} active users.`));
 
   // ── Read current mailbox timezone settings for every user ─────────────────
   // Done sequentially to stay well within Exchange Online throttle limits.
-  console.log(chalk.cyan('Reading mailbox timezone settings...\n'));
+  const tzSpinner = ora(chalk.cyan('Reading mailbox timezone settings...')).start();
 
   const alreadyCorrect = [];
   const needsUpdate    = [];
@@ -85,24 +78,10 @@ export async function fixTimezone({ dryRun = false, debug = false } = {}) {
 
   for (let i = 0; i < allUsers.length; i++) {
     const u = allUsers[i];
-    if (!debug) {
-      process.stdout.write(
-        chalk.gray(`\r  [${i + 1}/${allUsers.length}] ${pad(u.userPrincipalName || u.id, 50)}`)
-      );
-    }
+    
+    tzSpinner.text = chalk.cyan(`Reading mailbox timezone settings... (${i + 1}/${allUsers.length})`);
 
     const settings = await getMailboxTzSettings(u.id);
-
-    if (debug) {
-      console.log(chalk.gray(`[debug] ${u.userPrincipalName || u.id}`));
-      if (settings?._error) {
-        console.log(chalk.red('  error: ') + JSON.stringify(settings._error, null, 2)
-          .split('\n').map((l) => '  ' + l).join('\n'));
-      } else {
-        console.log(chalk.gray('  raw: ') + JSON.stringify(settings?._raw ?? null, null, 2)
-          .split('\n').map((l) => '  ' + l).join('\n'));
-      }
-    }
 
     if (settings === null) {
       // Should not happen with new code, but guard anyway
@@ -128,8 +107,7 @@ export async function fixTimezone({ dryRun = false, debug = false } = {}) {
     // Small pause to respect Exchange Online request-rate limits
     await sleep(100);
   }
-
-  if (!debug) process.stdout.write('\r' + ' '.repeat(60) + '\r');
+  tzSpinner.succeed(chalk.cyan('Read complete.'));
 
   // ── Summary ───────────────────────────────────────────────────────────────
   console.log(chalk.cyan('─────────────────────────────────────────'));
@@ -208,38 +186,26 @@ export async function fixTimezone({ dryRun = false, debug = false } = {}) {
   }
 
   // ── Apply changes sequentially ────────────────────────────────────────────
-  console.log(chalk.cyan('\nApplying changes...\n'));
+  const applySpinner = ora(chalk.cyan('Applying changes...')).start();
 
   const results = { ok: [], failed: [] };
 
-  for (const u of needsUpdate) {
+  for (let i = 0; i < needsUpdate.length; i++) {
+    const u = needsUpdate[i];
     const { settings } = u;
+    
+    applySpinner.text = chalk.cyan(`Applying changes... (${i + 1}/${needsUpdate.length})`);
+
     try {
       await setMailboxTzSettings(u.id, TARGET_TZ, settings.workingHours);
       results.ok.push(u);
-
-      const changed = [];
-      if (settings.timeZone !== TARGET_TZ)
-        changed.push(`calendar: ${chalk.red(settings.timeZone || '(unset)')}`);
-      if (settings.workingHoursTimeZone !== null && settings.workingHoursTimeZone !== TARGET_TZ)
-        changed.push(`working hours: ${chalk.red(settings.workingHoursTimeZone)}`);
-
-      console.log(
-        chalk.green('  [OK]    ') +
-        chalk.bold(pad(u.displayName || '', 30)) + '  ' +
-        changed.join(', ') + chalk.green(' → ' + TARGET_TZ)
-      );
     } catch (err) {
       results.failed.push({ ...u, error: err.message || String(err) });
-      console.log(
-        chalk.red('  [FAIL]  ') +
-        chalk.bold(pad(u.displayName || '', 30)) + '  ' +
-        chalk.red(err.message || err)
-      );
     }
 
     await sleep(100);
   }
+  applySpinner.succeed(chalk.cyan('Changes applied.'));
 
   // ── Final summary ─────────────────────────────────────────────────────────
   console.log(chalk.cyan('\n─────────────────────────────────────────'));
