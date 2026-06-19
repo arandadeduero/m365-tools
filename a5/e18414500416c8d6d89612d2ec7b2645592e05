@@ -1,0 +1,96 @@
+src/index.js
+  s_0f4218c9f5b4b3::t_66168ee5558bdd 165,178
+  s_0f4218c9f5b4b3::t_462ec17e878023 5,116,128,343,345,351,356,367,369,373,378,389,391,395,397
+src/commands/reset-password.js
+  s_0f4218c9f5b4b3::t_da0af73d35724c 98,106,108
+  s_0f4218c9f5b4b3::t_ad68ccfe17ef8d 4
+  s_0f4218c9f5b4b3::t_21ce32be15d4ba 56,58
+src/utils/cache.js
+  s_0f4218c9f5b4b3::t_d2ae82a3c716a7 46-48
+  s_0f4218c9f5b4b3::t_5779e86768f608 193-201
+src/commands/sync-check.js
+  s_0f4218c9f5b4b3::t_7ae731f24cfa35 4,22-23,203
+  s_0f4218c9f5b4b3::t_794a99d1da7cc1 246,252,255
+  s_0f4218c9f5b4b3::t_dcee662a04930a 32
+src/commands/sync-employee-ids.js
+  s_0f4218c9f5b4b3::t_1498a1834df73b 29
+  s_0f4218c9f5b4b3::t_b1aca2d6070b88 55,61,64
+  s_0f4218c9f5b4b3::t_20702c3e76233b 4,20,41
+src/commands/assign-manager.js
+  s_0f4218c9f5b4b3::t_f4e0c2094cf66e 3
+  s_0f4218c9f5b4b3::t_3cad4af7d4a4b2 38,42,45,58,60,63,67,70,83,85
+  s_0f4218c9f5b4b3::t_a330fab2e860fa 145,163,165
+src/commands/search.js
+  s_0f4218c9f5b4b3::t_e21c2590675bd8 3
+  s_0f4218c9f5b4b3::t_b8cfe1578b8cfa 13,16,18,21
+package.json
+  s_0f4218c9f5b4b3::t_efdc8951e1d4d4 43
+src/commands/fix.js
+  s_0f4218c9f5b4b3::t_9fe31d65f21896 195,200,207-209
+  s_0f4218c9f5b4b3::t_46915213a956f5 25,45,48
+  s_0f4218c9f5b4b3::t_b00f6e761189d3 108,126,128
+  s_0f4218c9f5b4b3::t_c0f3c9d73a8b50 3
+src/commands/validate.js
+  s_0f4218c9f5b4b3::t_b503b28f9e60a4 4,8,16,19
+src/commands/fix-timezone.js
+  s_0f4218c9f5b4b3::t_3027effc21a9f0 61,68,72,81-82,110
+  s_0f4218c9f5b4b3::t_538e666e4713f1 3
+  s_0f4218c9f5b4b3::t_1360f0bc01317a 189,193-194,196-198,208
+src/commands/validate-users.js
+  s_0f4218c9f5b4b3::t_fc755d83beb124 24
+  s_0f4218c9f5b4b3::t_0dca59d6302be4 236,242,247,250,253-254,256
+src/commands/list.js
+  s_0f4218c9f5b4b3::t_daa81cbedbf450 27,34,38,57,59-60,66-68,78-80
+  s_0f4218c9f5b4b3::t_c9e4f48f2fd35f 281,292,309,325-327,343
+  s_0f4218c9f5b4b3::t_afb044fb24883a 4
+  s_0f4218c9f5b4b3::t_ff875489293c8c 19,36-37,39,44-49,51-54,62-63
+  s_0f4218c9f5b4b3::t_7f57aa399c4b5a 3
+  s_0f4218c9f5b4b3::t_a873ed643be06f 31
+  s_0f4218c9f5b4b3::t_1951df73e187e8 40-43,55-56,58,61
+  s_0f4218c9f5b4b3::t_b5f5280b3f3ff9 77,81-85
+README.md
+  s_0f4218c9f5b4b3::t_3b2ab8500595d6 154,169-174,179-181
+  s_0f4218c9f5b4b3::t_0f9ad51ac8b9a3 300,302,305
+  s_0f4218c9f5b4b3::t_cfe06e5d8e35f9 404,406,409
+  s_0f4218c9f5b4b3::t_fbb71cd12a17ea 474
+  s_0f4218c9f5b4b3::t_7133dd75c2441b 369,371,374
+src/graph.js
+  s_0f4218c9f5b4b3::t_f7c6f7623be0b9 665-718
+  s_0f4218c9f5b4b3::t_09180c5770e043 6,12
+src/utils/excel-importer.js
+  s_28ce6786512c48::t_927c034e9be299 62-63
+src/commands/import.js
+  s_0f4218c9f5b4b3::t_741c1f59775e17 37,42,44
+  s_0f4218c9f5b4b3::t_9f1c125163416d 46,48
+  s_28ce6786512c48::t_f56b56f9d2ff2a 159-162,165-173
+  s_0f4218c9f5b4b3::t_77a1514b3d6163 2
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "a5e18414500416c8d6d89612d2ec7b2645592e05",
+  "prompts": {},
+  "humans": {
+    "h_3aa52f59e1a7c5": {
+      "author": "Guillermo López <willyaranda@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_0f4218c9f5b4b3": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_12989f8aaffeBO83L0n74uPxVj",
+        "model": "gemini-3.1-flash-lite"
+      },
+      "human_author": "Guillermo López <willyaranda@gmail.com>"
+    },
+    "s_28ce6786512c48": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_143276359ffedDDcjDhcCggJUg",
+        "model": "gemini-3.1-flash-lite"
+      },
+      "human_author": "Guillermo López <willyaranda@gmail.com>"
+    }
+  }
+}
