@@ -1,9 +1,11 @@
 import chalk from 'chalk';
 import ora from 'ora';
 import { parseExcel, rowToUserPayload, stripPasswordFromPayload } from '../utils/excel-importer.js';
+import { readExcel } from '../utils/excel.js';
 import { createUser, updateUser, findUserByUpn, setManager, listAllUsers, getUserLicenses, getManager } from '../graph.js';
 import { getDomain } from '../auth.js';
 import { generatePassword } from './reset-password.js';
+import { syncEmployeeIds } from './sync-employee-ids.js';
 
 /**
  * Helper to identify changes between payload and existing user.
@@ -212,4 +214,34 @@ export async function importUsers(filePath, options = {}) {
     }
     console.log();
   }
+
+  // ── Sync employee IDs & types ─────────────────────────────────────────────
+  // Re-read raw Excel rows (the import normalizer transforms them; sync needs originals)
+  // and re-fetch cloud users so we compare against the freshly-imported state.
+  console.log(chalk.cyan('----------------------------------------'));
+  console.log(chalk.bold('Syncing employee IDs & types from Excel…\n'));
+
+  let rawRows;
+  try {
+    ({ rows: rawRows } = await readExcel(filePath));
+  } catch (err) {
+    console.log(chalk.yellow(`  Warning: Could not re-read Excel for employee ID sync: ${err.message}`));
+    return;
+  }
+
+  // Refresh cloud user list to include any users just created/updated
+  let freshCloudUsers;
+  try {
+    freshCloudUsers = await listAllUsers({ onProgress: () => {} });
+  } catch (err) {
+    console.log(chalk.yellow(`  Warning: Could not fetch cloud users for employee ID sync: ${err.message}`));
+    return;
+  }
+
+  const cloudMap = new Map(
+    freshCloudUsers.map((u) => [u.userPrincipalName.toLowerCase(), u]),
+  );
+
+  await syncEmployeeIds(rawRows, cloudMap);
+  console.log(chalk.cyan('----------------------------------------\n'));
 }

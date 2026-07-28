@@ -1,5 +1,5 @@
 /**
- * sync-employee-ids command
+ * sync-employee-ids
  *
  * Reads id_empleado and Tipo de empleado from the Excel file and
  * writes them to the employeeId and employeeType fields of each matching M365 user.
@@ -15,72 +15,37 @@
  *   - e_mail is empty or not @arandadeduero.es  (can't match cloud user)
  *   - both id_empleado and Tipo de empleado are already in sync
  *   - no matching cloud user found
- *
- * Usage:
- *   m365-users sync-employee-ids <file>
- *
- * Exit codes:
- *   0  — all patches applied (or nothing to do)
- *   1  — one or more failures, aborted, or validation warnings present
  */
 
 import chalk from 'chalk';
-import inquirer from 'inquirer';
-import ora from 'ora';
-import { readExcel } from '../utils/excel.js';
-import { listAllUsers, updateUser } from '../graph.js';
+import { updateUser } from '../graph.js';
 import { REQUIRED_DOMAIN } from '../constants.js';
 
 /** Allowed values for Tipo de empleado → employeeType */
 const VALID_EMPLOYEE_TYPES = ['Funcionario', 'Laboral'];
 
 // ---------------------------------------------------------------------------
-// Main
+// Core logic — reusable, no prompts, no process.exit
 // ---------------------------------------------------------------------------
 
-export async function syncEmployeeIdsCommand(filePath) {
-  console.log(chalk.gray(`\nReading: ${filePath}`));
-
-  let rows;
-  try {
-    ({ rows } = await readExcel(filePath));
-  } catch (err) {
-    console.error(chalk.red(`\nFailed to read Excel file: ${err.message}`));
-    process.exit(1);
-  }
-
-  console.log(chalk.gray(`Excel: ${rows.length} row(s) found.\n`));
-
-  // ── 2. Fetch cloud users ───────────────────────────────────────────────────
-  const spinner = ora(chalk.cyan('Fetching users from Microsoft 365…')).start();
-
-  let cloudUsers;
-  try {
-    cloudUsers = await listAllUsers({ onProgress: () => {} });
-  } catch (err) {
-    spinner.fail(chalk.red(`Failed to fetch users: ${err.message}`));
-    process.exit(1);
-  }
-  spinner.succeed(chalk.cyan(`Cloud: ${cloudUsers.length} user(s) found.`));
-
-  // Build lookup: upn (lowercase) → user object (includes employeeId, employeeType)
-  const cloudMap = new Map(
-    cloudUsers.map((u) => [u.userPrincipalName.toLowerCase(), u]),
-  );
-
-  // ── 3. Build patch list ────────────────────────────────────────────────────
-  // toPatch entries: { name, email, cloudId, patch, preview }
-  //   patch   — the PATCH body to send (only fields that changed)
-  //   preview — display info per field
-  const toPatch        = [];
-  const skipped        = []; // { name, email, reason }
-  const typeWarnings   = []; // { name, email, value } — invalid Tipo de empleado
+/**
+ * Sync employeeId and employeeType from Excel rows to M365.
+ * Applies changes immediately without confirmation (designed to run as part of import).
+ *
+ * @param {Array} rows        - Raw Excel rows (with e_mail, id_empleado, Tipo de empleado, Trabajador)
+ * @param {Map}   cloudMap    - Map<upn (lowercase), cloudUser object>
+ * @returns {{ ok: number, failed: number, skipped: number, typeWarnings: number }}
+ */
+export async function syncEmployeeIds(rows, cloudMap) {
+  const toPatch      = [];
+  const skipped      = [];
+  const typeWarnings = [];
 
   for (const row of rows) {
-    const name         = row['Trabajador'] ?? '';
-    const email        = (row['e_mail'] ?? '').trim().toLowerCase();
-    const employeeId   = (row['id_empleado'] ?? '').toString().trim();
-    const rawType      = (row['Tipo de empleado'] ?? '').toString().trim();
+    const name       = row['Trabajador'] ?? '';
+    const email      = (row['e_mail'] ?? '').trim().toLowerCase();
+    const employeeId = (row['id_empleado'] ?? '').toString().trim();
+    const rawType    = (row['Tipo de empleado'] ?? '').toString().trim();
 
     if (!email.endsWith(REQUIRED_DOMAIN)) {
       skipped.push({ name, email: email || '(vacío)', reason: 'email sin dominio @arandadeduero.es' });
@@ -102,122 +67,45 @@ export async function syncEmployeeIdsCommand(filePath) {
     }
 
     // employeeType — validate, then sync if different
-    let resolvedType = null;
     if (rawType) {
       if (VALID_EMPLOYEE_TYPES.includes(rawType)) {
-        resolvedType = rawType;
         const cloudEmployeeType = (cloudUser.employeeType ?? '').toString().trim();
-        if (cloudEmployeeType !== resolvedType) {
-          patch.employeeType = resolvedType;
+        if (cloudEmployeeType !== rawType) {
+          patch.employeeType = rawType;
         }
       } else {
         typeWarnings.push({ name, email, value: rawType });
       }
     }
 
-    if (Object.keys(patch).length === 0) {
-      // Already fully in sync — silent skip
-      continue;
-    }
+    if (Object.keys(patch).length === 0) continue;
 
-    toPatch.push({
-      name,
-      email,
-      cloudId: cloudUser.id,
-      patch,
-      // display values
-      employeeId:        patch.employeeId      ?? null,
-      cloudEmployeeId:   cloudEmployeeId       || null,
-      employeeType:      patch.employeeType    ?? null,
-      cloudEmployeeType: (cloudUser.employeeType ?? '').toString().trim() || null,
-    });
+    toPatch.push({ name, email, cloudId: cloudUser.id, patch });
   }
 
-  // ── 4. Show type validation warnings ──────────────────────────────────────
+  // ── Type warnings ─────────────────────────────────────────────────────────
   if (typeWarnings.length > 0) {
-    console.log(chalk.red.bold(`⚠  ${typeWarnings.length} fila(s) con valor inválido en "Tipo de empleado":`));
+    console.log(chalk.red.bold(`\n⚠  ${typeWarnings.length} fila(s) con valor inválido en "Tipo de empleado":`));
     console.log(chalk.gray(`   Valores permitidos: ${VALID_EMPLOYEE_TYPES.join(', ')}\n`));
     for (const w of typeWarnings) {
       console.log(`   ${chalk.white(w.name.padEnd(40))}  ${chalk.gray(w.email.padEnd(46))}  ${chalk.red(`"${w.value}"`)}`);
     }
-    console.log('');
   }
 
-  // ── 5. Print preview ──────────────────────────────────────────────────────
+  // ── Nothing to do ─────────────────────────────────────────────────────────
   if (toPatch.length === 0) {
-    if (typeWarnings.length > 0) {
-      console.log(chalk.yellow('Sin cambios que aplicar (corrige los valores inválidos antes de continuar).'));
-      process.exit(1);
-    }
-    console.log(chalk.green('✔  Todos los campos ya están sincronizados — nada que hacer.'));
-    process.exit(0);
+    console.log(chalk.green('  ✔  Employee IDs already in sync — nothing to do.'));
+    return { ok: 0, failed: 0, skipped: skipped.length, typeWarnings: typeWarnings.length };
   }
 
-  const NAME_W = 36;
-  const EMAIL_W = 44;
-  const VAL_W  = 14;
-
-  console.log(chalk.bold.yellow(`● ${toPatch.length} usuario(s) con cambios pendientes:\n`));
-
-  // Header
-  console.log(
-    chalk.bold(
-      '  ' + 'Nombre'.padEnd(NAME_W) + '  ' +
-      'UPN'.padEnd(EMAIL_W) + '  ' +
-      'Campo'.padEnd(14) + '  ' +
-      'Excel'.padEnd(VAL_W) + '  ' +
-      'Cloud actual',
-    ),
-  );
-  console.log(chalk.gray('  ' + '─'.repeat(NAME_W + EMAIL_W + VAL_W + 42)));
-
-  for (const u of toPatch) {
-    const nameStr  = u.name.slice(0, NAME_W - 1).padEnd(NAME_W);
-    const emailStr = u.email.padEnd(EMAIL_W);
-
-    if (u.employeeId !== null) {
-      const cloudLabel = u.cloudEmployeeId ? chalk.yellow(u.cloudEmployeeId) : chalk.gray('(vacío)');
-      console.log(
-        `  ${chalk.white(nameStr)}  ${chalk.gray(emailStr)}  ` +
-        `${'employeeId'.padEnd(14)}  ${chalk.cyan(u.employeeId.padEnd(VAL_W))}  ${cloudLabel}`,
-      );
-    }
-    if (u.employeeType !== null) {
-      const cloudTypeLabel = u.cloudEmployeeType ? chalk.yellow(u.cloudEmployeeType) : chalk.gray('(vacío)');
-      console.log(
-        `  ${chalk.white(nameStr)}  ${chalk.gray(emailStr)}  ` +
-        `${'employeeType'.padEnd(14)}  ${chalk.cyan(u.employeeType.padEnd(VAL_W))}  ${cloudTypeLabel}`,
-      );
-    }
-  }
-
-  if (skipped.length > 0) {
-    console.log(chalk.gray(`\n  (${skipped.length} fila(s) omitidas por: email inválido o usuario no encontrado)`));
-  }
-
-  // ── 6. Confirmation ────────────────────────────────────────────────────────
-  console.log('');
-  const { confirm } = await inquirer.prompt([{
-    type: 'confirm',
-    name: 'confirm',
-    message: chalk.yellow(`¿Aplicar cambios para ${toPatch.length} usuario(s) en Microsoft 365?`),
-    default: false,
-  }]);
-
-  if (!confirm) {
-    console.log(chalk.gray('\nCancelado — sin cambios.\n'));
-    process.exit(1);
-  }
-
-  // ── 7. Apply ───────────────────────────────────────────────────────────────
-  console.log('');
+  // ── Apply patches ─────────────────────────────────────────────────────────
   let ok = 0;
   let failed = 0;
 
   for (const u of toPatch) {
     const fields = Object.keys(u.patch).join(', ');
     process.stdout.write(
-      `  ${chalk.cyan(u.email.padEnd(EMAIL_W))}  ${chalk.gray(`[${fields}]`).padEnd(30)}  `,
+      `  ${chalk.cyan(u.email.padEnd(44))}  ${chalk.gray(`[${fields}]`).padEnd(30)}  `,
     );
     try {
       await updateUser(u.cloudId, u.patch);
@@ -229,16 +117,12 @@ export async function syncEmployeeIdsCommand(filePath) {
     }
   }
 
-  // ── 8. Summary ─────────────────────────────────────────────────────────────
-  console.log('');
-  if (failed === 0 && typeWarnings.length === 0) {
-    console.log(chalk.green.bold(`✔  ${ok} usuario(s) actualizados correctamente.`));
-    process.exit(0);
+  // ── Summary line ──────────────────────────────────────────────────────────
+  if (failed === 0) {
+    console.log(chalk.green(`  ✔  ${ok} employee ID(s) synced.`));
   } else {
-    if (ok > 0)           console.log(chalk.green(`  ${ok} correctos`));
-    if (failed > 0)       console.log(chalk.red(`  ${failed} fallidos`));
-    if (typeWarnings.length > 0)
-      console.log(chalk.yellow(`  ${typeWarnings.length} fila(s) con tipo de empleado inválido (sin cambios aplicados para esas filas)`));
-    process.exit(1);
+    console.log(chalk.yellow(`  ${ok} synced, `) + chalk.red(`${failed} failed.`));
   }
+
+  return { ok, failed, skipped: skipped.length, typeWarnings: typeWarnings.length };
 }

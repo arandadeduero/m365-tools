@@ -13,6 +13,10 @@
  *   Employees with a past/present Fecha de Baja and an @arandadeduero.es email
  *   must have accountEnabled = false in M365.
  *
+ * Check 3 — Cloud-only accounts:
+ *   Users that exist in M365 with an @arandadeduero.es email but do not appear
+ *   in the Excel file at all (neither as active nor as left employees).
+ *
  * --fix flag (Check 2 only):
  *   Prints the list of accounts to act on, asks for double confirmation, then
  *   for each account: disables it (accountEnabled = false) and removes all
@@ -261,6 +265,7 @@ export async function syncCheckCommand(filePath, { fix = false } = {}) {
   // ── 4. Run checks ──────────────────────────────────────────────────────────
   const missing = [];
   const notDisabled = [];
+  const cloudOnly = [];
 
   for (const [upn, info] of mustExist) {
     if (!cloudMap.has(upn)) missing.push(info);
@@ -273,8 +278,19 @@ export async function syncCheckCommand(filePath, { fix = false } = {}) {
     }
   }
 
+  // Check 3 — cloud users not present in Excel
+  for (const [upn, cloudUser] of cloudMap) {
+    if (!upn.endsWith(REQUIRED_DOMAIN)) continue;
+    if (mustExist.has(upn) || mustBeDisabled.has(upn)) continue;
+    cloudOnly.push({
+      name: cloudUser.displayName ?? '',
+      email: upn,
+      accountEnabled: cloudUser.accountEnabled,
+    });
+  }
+
   // ── 5. Print report ────────────────────────────────────────────────────────
-  const totalIssues = missing.length + notDisabled.length + noEmail.length;
+  const totalIssues = missing.length + notDisabled.length + noEmail.length + cloudOnly.length;
 
   if (totalIssues === 0) {
     console.log(chalk.green('✔  Everything is in sync — no issues found!'));
@@ -337,6 +353,26 @@ export async function syncCheckCommand(filePath, { fix = false } = {}) {
     }
 
     console.log(chalk.gray('  Run with --disable-left-workers to disable and unlicense these accounts.'));
+    console.log('');
+  }
+
+  // Check 3 — cloud-only accounts (not in Excel)
+  if (cloudOnly.length > 0) {
+    console.log(chalk.bold.yellow('● Check 3: Cloud accounts not present in the Excel file'));
+    console.log(
+      chalk.gray(
+        '  These users exist in M365 with an ' + REQUIRED_DOMAIN + ' email but do not appear\n' +
+          '  in the employee Excel file (neither as active nor as left).\n',
+      ),
+    );
+    for (const info of cloudOnly) {
+      const status = info.accountEnabled === false
+        ? chalk.gray('[disabled]')
+        : chalk.green('[enabled]');
+      console.log(
+        `  ${chalk.red('✖')} ${chalk.green(info.name.padEnd(40))}  ${chalk.cyan(info.email.padEnd(45))}  ${status}`,
+      );
+    }
     console.log('');
   }
 

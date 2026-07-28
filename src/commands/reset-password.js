@@ -69,7 +69,7 @@ export async function resetPasswordCommand(upn) {
   console.log(chalk.cyan('\n' + '─'.repeat(52)));
   console.log(chalk.bold(`  ${displayName}`));
   console.log(`  ${chalk.gray('UPN:')}        ${userUpn}`);
-  if (user.jobTitle)   console.log(`  ${chalk.gray('Title:')}      ${user.jobTitle}`);
+  if (user.jobTitle) console.log(`  ${chalk.gray('Title:')}      ${user.jobTitle}`);
   if (user.department) console.log(`  ${chalk.gray('Department:')} ${user.department}`);
   console.log(chalk.cyan('─'.repeat(52)));
 
@@ -117,7 +117,10 @@ export async function resetPasswordCommand(upn) {
   const body = [
     `username: ${userUpn}`,
     `password: ${newPassword}`,
+    `Recuerda que la contraseña de Microsoft365 es diferente a la de tu actual correo corporativo y a la de tu ordenador. Esta contraseña es temporal y deberás cambiarla en tu primer inicio de sesión.`,
+    `\n`,
     `url: https://aytoarandaduero.sharepoint.com/`,
+    `\n`,
     `Sigue la guía de bienvenida en este enlace https://aytoarandaduero-my.sharepoint.com/:f:/g/personal/glopez_${DOMAIN.replace('.', '_')}/IgDxAF3YuiHuRILrP8vCkGRnAYrtXe0_jzxtD_l9ZON1CGg?e=86PJVY`,
   ].join('\n');
 

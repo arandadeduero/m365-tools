@@ -15,7 +15,6 @@ import { fixJobTitles, fixOrgChart } from './commands/fix.js';
 import { validateCommand } from './commands/validate.js';
 import { syncCheckCommand } from './commands/sync-check.js';
 import { validateUsersCommand } from './commands/validate-users.js';
-import { syncEmployeeIdsCommand } from './commands/sync-employee-ids.js';
 import { resetPasswordCommand } from './commands/reset-password.js';
 import { REQUIRED_DOMAIN } from './constants.js';
 import pkg from '../package.json' with { type: 'json' };
@@ -354,28 +353,6 @@ program
     initAuth(config);
     try {
       await syncCheckCommand(resolve(excelFile), { fix: !!options.disableLeftWorkers });
-    } catch (err) {
-      handleError(err);
-    }
-  });
-
-// ---------------------------------------------------------------------------
-// sync-employee-ids command
-// ---------------------------------------------------------------------------
-
-program
-  .command('sync-employee-ids <excelFile>')
-  .description(
-    'Lee id_empleado del Excel y lo escribe en el campo employeeId de cada usuario en M365.\n' +
-    '  El Excel es la fuente de verdad: siempre sobreescribe el valor en la nube.\n' +
-    '  La coincidencia se hace por email (e_mail → userPrincipalName).'
-  )
-  .action(async (excelFile) => {
-    const opts = program.opts();
-    const config = await loadConfig(opts.config);
-    initAuth(config);
-    try {
-      await syncEmployeeIdsCommand(resolve(excelFile));
     } catch (err) {
       handleError(err);
     }
