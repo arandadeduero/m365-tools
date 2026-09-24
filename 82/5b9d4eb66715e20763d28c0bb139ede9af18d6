@@ -1,0 +1,66 @@
+src/utils/excel.js
+  s_c6ed71cfd73ac0::t_3a3afb97a99e2d 4-5
+  s_c6ed71cfd73ac0::t_a0051797d92e97 47-49,51,76-103
+  s_c6ed71cfd73ac0::t_e3a5947348e3b5 104
+README.md
+  s_c3c4494f81f8a2::t_cd5e80226b4128 468
+  s_c3c4494f81f8a2::t_5b4143711514f7 119
+  s_c3c4494f81f8a2::t_1b1740814d2a70 488
+  s_c3c4494f81f8a2::t_c2e7116bcf2ad9 49-54,58
+  s_c3c4494f81f8a2::t_4518582cef1425 395-397
+  s_c3c4494f81f8a2::t_e6d62bd28a5c29 461
+  s_c3c4494f81f8a2::t_0c1a6d64ed29ed 59
+src/commands/sync-check.js
+  s_c6ed71cfd73ac0::t_dfab35c1507bf0 222,232,237,244-251,255-257
+  s_c6ed71cfd73ac0::t_1a3787fe63196e 210,212
+  s_c6ed71cfd73ac0::t_1090c31bdb5a1e 293-294,298
+  s_c6ed71cfd73ac0::t_2b6a44031bdea8 297
+  s_c3c4494f81f8a2::t_b23f7b077ec6d0 93-95,266,334,351,357-359,379
+package.json
+  s_c3c4494f81f8a2::t_abcba5c3a0894b 37
+src/utils/cache.js
+  s_c3c4494f81f8a2::t_ce43a71bdfd059 22
+src/commands/import.js
+  s_0052ce2c3eff2e::t_c372b61e17b06d 17
+  s_0052ce2c3eff2e::t_8ea2ca54357de7 24-35
+  s_0052ce2c3eff2e::t_35e2d62e846338 23
+package-lock.json
+  s_c3c4494f81f8a2::t_b4833bbef41084 12,716,1690,2148
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "825b9d4eb66715e20763d28c0bb139ede9af18d6",
+  "prompts": {},
+  "humans": {
+    "h_3aa52f59e1a7c5": {
+      "author": "Guillermo López <willyaranda@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_0052ce2c3eff2e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_056201e0fffe7CsYiIIekWnQgE",
+        "model": "claude-sonnet-4-5"
+      },
+      "human_author": "Guillermo López <willyaranda@gmail.com>"
+    },
+    "s_c3c4494f81f8a2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0c4a926e-4b5f-4433-a640-267856aac21a",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "Guillermo López <willyaranda@gmail.com>"
+    },
+    "s_c6ed71cfd73ac0": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_0563c4de8ffeyarLErh5UiZAeM",
+        "model": "claude-sonnet-4-5"
+      },
+      "human_author": "Guillermo López <willyaranda@gmail.com>"
+    }
+  }
+}
