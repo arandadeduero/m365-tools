@@ -90,9 +90,9 @@ async function fixNotDisabled(notDisabled) {
       : lics.map((l) => chalk.magenta(l.skuPartNumber)).join(', ');
     console.log(
       `  ${chalk.red('►')} ${chalk.green(info.name.padEnd(40))}  ` +
-        `${chalk.cyan(info.email.padEnd(45))}  ` +
-        `Fecha de Baja: ${chalk.yellow(info.fechaBaja.padEnd(12))}  ` +
-        `Licences: ${licLabel}`,
+      `${chalk.cyan(info.email.padEnd(45))}  ` +
+      `Fecha de Baja: ${chalk.yellow(info.fechaBaja.padEnd(12))}  ` +
+      `Licences: ${licLabel}`,
     );
   }
 
@@ -207,9 +207,9 @@ async function fixNotDisabled(notDisabled) {
 export async function syncCheckCommand(filePath, { fix = false } = {}) {
   console.log(chalk.gray(`\nReading: ${filePath}`));
 
-  let rows;
+  let rows, concejalesRows;
   try {
-    ({ rows } = await readExcel(filePath));
+    ({ rows, concejalesRows } = await readExcel(filePath));
   } catch (err) {
     console.error(chalk.red(`\nFailed to read Excel file: ${err.message}`));
     process.exit(1);
@@ -219,6 +219,7 @@ export async function syncCheckCommand(filePath, { fix = false } = {}) {
   const mustExist = new Map();      // upn -> { name, email }
   const mustBeDisabled = new Map(); // upn -> { name, email, fechaBaja }
   const noEmail = [];               // { name, email } — active, no lookable UPN
+  const allExcelEmails = new Set(); // All emails from both ACTIVOS and CONCEJALES for Check 3
 
   for (const row of rows) {
     const email = (row['e_mail'] ?? '').toLowerCase();
@@ -228,21 +229,32 @@ export async function syncCheckCommand(filePath, { fix = false } = {}) {
     if (isEffectiveLeaving(fechaBaja)) {
       if (email.endsWith(REQUIRED_DOMAIN)) {
         mustBeDisabled.set(email, { name, email, fechaBaja });
+        allExcelEmails.add(email);
       }
     } else {
       if (email.endsWith(REQUIRED_DOMAIN)) {
         mustExist.set(email, { name, email });
+        allExcelEmails.add(email);
       } else {
         noEmail.push({ name, email: email || '(empty)' });
       }
     }
   }
 
+  // Process CONCEJALES sheet
+  for (const row of concejalesRows) {
+    const email = (row['email'] ?? '').toLowerCase();
+    if (email && email.endsWith(REQUIRED_DOMAIN)) {
+      allExcelEmails.add(email);
+    }
+  }
+
   console.log(
     chalk.gray(
       `Excel: ${mustExist.size} active employee(s) to check, ` +
-        `${mustBeDisabled.size} left employee(s) to check, ` +
-        `${noEmail.length} active employee(s) with no ${REQUIRED_DOMAIN} email.\n`,
+      `${mustBeDisabled.size} left employee(s) to check, ` +
+      `${noEmail.length} active employee(s) with no ${REQUIRED_DOMAIN} email, ` +
+      `${concejalesRows.length} concejales found.\n`,
     ),
   );
 
@@ -251,7 +263,7 @@ export async function syncCheckCommand(filePath, { fix = false } = {}) {
 
   let cloudUsers;
   try {
-    cloudUsers = await listAllUsers({ onProgress: () => {} });
+    cloudUsers = await listAllUsers({ onProgress: () => { } });
   } catch (err) {
     spinner.fail(chalk.red(`\nFailed to fetch users from M365: ${err.message}`));
     process.exit(1);
@@ -278,10 +290,12 @@ export async function syncCheckCommand(filePath, { fix = false } = {}) {
     }
   }
 
-  // Check 3 — cloud users not present in Excel
+  // Check 3 — cloud users not present in Excel (ACTIVOS or CONCEJALES)
+  // Also filter out room accounts that start with 'sala-'
   for (const [upn, cloudUser] of cloudMap) {
     if (!upn.endsWith(REQUIRED_DOMAIN)) continue;
-    if (mustExist.has(upn) || mustBeDisabled.has(upn)) continue;
+    if (upn.startsWith('sala-') || upn.startsWith('salapz')) continue; // Skip room accounts
+    if (allExcelEmails.has(upn)) continue; // Skip if in ACTIVOS or CONCEJALES
     cloudOnly.push({
       name: cloudUser.displayName ?? '',
       email: upn,
@@ -317,7 +331,7 @@ export async function syncCheckCommand(filePath, { fix = false } = {}) {
     console.log(
       chalk.gray(
         '  These employees have no Fecha de Baja but their email is missing or uses a\n' +
-          '  different domain, so their cloud account cannot be verified by UPN.\n',
+        '  different domain, so their cloud account cannot be verified by UPN.\n',
       ),
     );
     for (const info of noEmail) {
@@ -334,15 +348,15 @@ export async function syncCheckCommand(filePath, { fix = false } = {}) {
     console.log(
       chalk.gray(
         '  These employees have a Fecha de Baja in the file,\n' +
-          '  but their cloud account is still active (or not found).\n',
+        '  but their cloud account is still active (or not found).\n',
       ),
     );
     for (const info of notDisabled) {
       console.log(
         `  ${chalk.red('✖')} ${chalk.green(info.name.padEnd(40))}  ` +
-          `${chalk.cyan(info.email.padEnd(45))}  ` +
-          `Fecha de Baja: ${chalk.yellow(info.fechaBaja.padEnd(15))}  ` +
-          chalk.red(`[${info.cloudStatus}]`),
+        `${chalk.cyan(info.email.padEnd(45))}  ` +
+        `Fecha de Baja: ${chalk.yellow(info.fechaBaja.padEnd(15))}  ` +
+        chalk.red(`[${info.cloudStatus}]`),
       );
     }
     console.log('');
@@ -362,7 +376,7 @@ export async function syncCheckCommand(filePath, { fix = false } = {}) {
     console.log(
       chalk.gray(
         '  These users exist in M365 with an ' + REQUIRED_DOMAIN + ' email but do not appear\n' +
-          '  in the employee Excel file (neither as active nor as left).\n',
+        '  in the employee Excel file (neither as active nor as left).\n',
       ),
     );
     for (const info of cloudOnly) {

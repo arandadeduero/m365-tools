@@ -5,7 +5,6 @@ import { readExcel } from '../utils/excel.js';
 import { createUser, updateUser, findUserByUpn, setManager, listAllUsers, getUserLicenses, getManager } from '../graph.js';
 import { getDomain } from '../auth.js';
 import { generatePassword } from './reset-password.js';
-import { syncEmployeeIds } from './sync-employee-ids.js';
 
 /**
  * Helper to identify changes between payload and existing user.
@@ -15,13 +14,25 @@ function getChanges(payload, existing) {
   const fieldsToCheck = [
     'displayName', 'givenName', 'surname', 'jobTitle', 'department',
     'mobilePhone', 'officeLocation', 'city', 'state', 'postalCode',
-    'country', 'usageLocation', 'preferredLanguage'
+    'country', 'usageLocation', 'preferredLanguage', 'employeeId', 'employeeType'
   ];
 
   for (const field of fieldsToCheck) {
     const pValue = payload[field];
     const eValue = existing[field];
-    if (pValue !== undefined && pValue !== eValue) {
+
+    // For employeeId, convert both to strings for comparison to handle type mismatches
+    if (field === 'employeeId') {
+      const pStr = pValue != null ? String(pValue).trim() : '';
+      const eStr = eValue != null ? String(eValue).trim() : '';
+      if (pValue !== undefined && pStr !== eStr) {
+        changes.push({
+          field,
+          old: eValue ?? '(null)',
+          new: pValue
+        });
+      }
+    } else if (pValue !== undefined && pValue !== eValue) {
       changes.push({
         field,
         old: eValue ?? '(null)',
@@ -214,34 +225,4 @@ export async function importUsers(filePath, options = {}) {
     }
     console.log();
   }
-
-  // ── Sync employee IDs & types ─────────────────────────────────────────────
-  // Re-read raw Excel rows (the import normalizer transforms them; sync needs originals)
-  // and re-fetch cloud users so we compare against the freshly-imported state.
-  console.log(chalk.cyan('----------------------------------------'));
-  console.log(chalk.bold('Syncing employee IDs & types from Excel…\n'));
-
-  let rawRows;
-  try {
-    ({ rows: rawRows } = await readExcel(filePath));
-  } catch (err) {
-    console.log(chalk.yellow(`  Warning: Could not re-read Excel for employee ID sync: ${err.message}`));
-    return;
-  }
-
-  // Refresh cloud user list to include any users just created/updated
-  let freshCloudUsers;
-  try {
-    freshCloudUsers = await listAllUsers({ onProgress: () => {} });
-  } catch (err) {
-    console.log(chalk.yellow(`  Warning: Could not fetch cloud users for employee ID sync: ${err.message}`));
-    return;
-  }
-
-  const cloudMap = new Map(
-    freshCloudUsers.map((u) => [u.userPrincipalName.toLowerCase(), u]),
-  );
-
-  await syncEmployeeIds(rawRows, cloudMap);
-  console.log(chalk.cyan('----------------------------------------\n'));
 }

@@ -19,7 +19,7 @@
 // carry no meaningful organisational information.
 // ---------------------------------------------------------------------------
 
-export const AUTO_GROUPS = new Set([
+const AUTO_GROUPS = new Set([
   'Todo Ayuntamiento',
   'Todos los usuarios',
   'Expertos 365',
@@ -205,18 +205,4 @@ export function seedLicensesMap(licensesMap) {
  */
 export function seedUsers(users) {
   for (const u of users) setCachedUser(u);
-}
-
-// ---------------------------------------------------------------------------
-// Full reset (useful for tests)
-// ---------------------------------------------------------------------------
-
-export function _resetAllCaches() {
-  _users.clear();
-  _managers.clear();
-  _userGroups.clear();
-  _groupNames.clear();
-  _allGroups       = null;
-  _allDepartments  = null;
-  _allJobTitles    = null;
 }

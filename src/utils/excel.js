@@ -1,8 +1,8 @@
 /**
  * Excel reader utility.
  *
- * Reads the "ACTIVOS" worksheet of an .xlsx file and returns rows as an array of
- * plain objects, using the first non-empty row as column headers.
+ * Reads the "ACTIVOS" and "CONCEJALES" worksheets of an .xlsx file and returns
+ * rows as an array of plain objects, using the first non-empty row as column headers.
  *
  * Values are trimmed strings; empty/null cells become empty strings ''.
  */
@@ -44,18 +44,11 @@ export function cellToString(value) {
 }
 
 /**
- * @param {string} filePath  Absolute path to the .xlsx file.
- * @returns {Promise<{ headers: string[], rows: Record<string, string>[] }>}
+ * Helper to read a single worksheet and convert to array of objects.
+ * @param {ExcelJS.Worksheet} sheet
+ * @returns {{ headers: string[], rows: Record<string, string>[] }}
  */
-export async function readExcel(filePath) {
-  const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.readFile(filePath);
-
-  const sheet = workbook.getWorksheet('ACTIVOS');
-  if (!sheet) {
-    throw new Error(`Worksheet "ACTIVOS" not found in: ${filePath}`);
-  }
-
+function readWorksheet(sheet) {
   const allRows = [];
   sheet.eachRow({ includeEmpty: false }, (row) => {
     const values = row.values.slice(1); // row.values is 1-indexed; slice off the leading undefined
@@ -79,4 +72,33 @@ export async function readExcel(filePath) {
   });
 
   return { headers, rows };
+}
+
+/**
+ * @param {string} filePath  Absolute path to the .xlsx file.
+ * @returns {Promise<{ headers: string[], rows: Record<string, string>[], concejalesHeaders: string[], concejalesRows: Record<string, string>[] }>}
+ */
+export async function readExcel(filePath) {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile(filePath);
+
+  const activosSheet = workbook.getWorksheet('ACTIVOS');
+  if (!activosSheet) {
+    throw new Error(`Worksheet "ACTIVOS" not found in: ${filePath}`);
+  }
+
+  const { headers, rows } = readWorksheet(activosSheet);
+
+  // Read CONCEJALES sheet if it exists
+  const concejalesSheet = workbook.getWorksheet('CONCEJALES');
+  let concejalesHeaders = [];
+  let concejalesRows = [];
+  
+  if (concejalesSheet) {
+    const concejalesData = readWorksheet(concejalesSheet);
+    concejalesHeaders = concejalesData.headers;
+    concejalesRows = concejalesData.rows;
+  }
+
+  return { headers, rows, concejalesHeaders, concejalesRows };
 }

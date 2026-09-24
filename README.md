@@ -46,9 +46,16 @@ Edita `config.json`:
   "tenantId": "TU_TENANT_ID",
   "clientId": "TU_CLIENT_ID",
   "domain": "tudominio.com",
-  "scopes": ["User.ReadWrite.All", "Directory.ReadWrite.All", "MailboxSettings.ReadWrite"]
+  "scopes": [
+    "User.ReadWrite.All",
+    "Directory.ReadWrite.All",
+    "MailboxSettings.ReadWrite",
+    "User-PasswordProfile.ReadWrite.All"
+  ]
 }
 ```
+
+> El scope `User-PasswordProfile.ReadWrite.All` es necesario para `reset-password`. `MailboxSettings.ReadWrite` es necesario para `fix timezone`.
 
 > **Importante:** `config.json` está incluido en `.gitignore` para evitar exponer credenciales. Nunca lo subas a un repositorio.
 
@@ -109,7 +116,7 @@ m365-users import usuarios.xlsx --limit 5
 
 #### Formato del archivo Excel
 
-Consulta [`sample.xlsx`](./sample.xlsx) para ver un ejemplo completo.
+Consulta [`sample.csv`](./sample.csv) para ver un ejemplo de las columnas y datos esperados. Nota: `import` requiere un archivo `.xlsx` real (hoja `ACTIVOS`); usa este CSV como referencia de columnas, no como archivo importable directamente.
 
 **Columnas obligatorias:** `userPrincipalName`, `displayName`, `mailNickname`, `password`
 
@@ -385,6 +392,9 @@ Trabajadores con una `Fecha de Baja` pasada o de hoy, y con email `@arandadeduer
 
 > Las fechas de baja futuras no cuentan como salida efectiva y no se incluyen en el Check 2.
 
+**Check 3 — Cuentas en la nube que no aparecen en el Excel:**
+Compara todas las cuentas `@arandadeduero.es` de M365 contra los emails encontrados en **ambas** hojas del Excel (`ACTIVOS` y, si existe, `CONCEJALES`). Las cuentas de sala (UPN que empieza por `sala-` o `salapz`) se excluyen siempre de este check.
+
 #### Opción `--disable-left-workers`
 
 Deshabilita y retira las licencias de las cuentas identificadas en el **Check 2** que siguen activas. Muestra una previsualización completa (incluyendo las licencias asignadas y un resumen del total que se va a retirar) y solicita **doble confirmación** antes de realizar ningún cambio.
@@ -400,29 +410,6 @@ El proceso por cada cuenta:
 Las cuentas que no se encuentran en la nube se muestran en la previsualización pero se omiten de la operación (no hay nada que deshabilitar).
 
 ---
-
-### `sync-employee-ids <archivo.xlsx>`
-
-Lee las columnas `id_empleado` y `Tipo de empleado` del archivo Excel y las escribe en los campos `employeeId` y `employeeType` de cada usuario en Microsoft 365. El Excel es la fuente de verdad.
-
-```bash
-m365-users sync-employee-ids usuarios.xlsx
-```
-
-**Valores permitidos para `Tipo de empleado`:** `Funcionario`, `Laboral`.  
-Las filas con un valor distinto se muestran como advertencia y no se sincronizan (las demás filas sí).
-
-**Se omiten las filas donde:**
-- `e_mail` no tiene el dominio `@arandadeduero.es` o está vacío
-- No se encuentra la cuenta en la nube
-- Ambos campos ya están sincronizados (sin cambios necesarios)
-
-**Flujo:**
-1. Muestra advertencias para filas con `Tipo de empleado` inválido
-2. Muestra tabla de preview con los cambios pendientes (campo, valor Excel, valor actual en la nube)
-3. Solicita confirmación única antes de aplicar cambios
-4. Aplica un único PATCH por usuario con todos los campos a actualizar
-5. Muestra un resumen final (correctos / fallidos / advertencias)
 
 ### `reset-password <username>`
 
@@ -471,13 +458,14 @@ m365-users -c /ruta/a/otro-config.json list
 
 ```
 m365-users/
-├── sample.xlsx              # Excel de ejemplo para importación
+├── sample.csv               # Referencia de columnas para importación (no importable directamente, ver arriba)
 ├── config.example.json     # Plantilla de configuración (sin credenciales reales)
 ├── config.json             # Tu configuración real (gitignoreado)
 ├── package.json
 └── src/
     ├── index.js            # Punto de entrada CLI
     ├── auth.js             # Autenticación (Device Code Flow + caché MSAL cifrada)
+    ├── constants.js        # Constantes compartidas (dominio requerido)
     ├── graph.js            # Cliente de Microsoft Graph API (con caché en memoria)
     ├── commands/
     │   ├── import.js       # Importación masiva desde Excel
@@ -490,7 +478,6 @@ m365-users/
     │   ├── validate.js     # Validación del Excel de trabajadores
     │   ├── validate-users.js  # Listado de usuarios con sus grupos
     │   ├── sync-check.js   # Comprobación de sincronización con M365
-    │   ├── sync-employee-ids.js  # Sincronización de id_empleado/Tipo → employeeId/employeeType
     │   └── reset-password.js    # Restablecimiento de contraseña con enlace mailto:
     ├── validators/
     │   └── excel-rules.js    # Reglas de validación del Excel
@@ -498,7 +485,7 @@ m365-users/
         ├── ansi.js         # Eliminación de códigos de escape ANSI
         ├── cache.js        # Caché en memoria para datos de Graph API (usuarios, grupos, etc.)
         ├── excel-importer.js       # Parseo y validación de Excel
-        ├── excel.js        # Lectura de archivos .xlsx
+        ├── excel.js        # Lectura de archivos .xlsx (hojas ACTIVOS y CONCEJALES)
         ├── token-store.js  # Almacenamiento cifrado genérico (AES-256-GCM)
         └── upn.js          # Utilidades para UPN
 ```

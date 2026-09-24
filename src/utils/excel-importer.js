@@ -3,48 +3,6 @@ import { readExcel } from './excel.js';
 // Required fields for creating a new user
 const REQUIRED_FIELDS = ['userPrincipalName', 'displayName', 'mailNickname'];
 
-// All supported Excel columns and their mapping to Graph API properties
-export const FIELD_MAP = {
-// Identity
-userPrincipalName: 'userPrincipalName',
-displayName: 'displayName',
-givenName: 'givenName',
-surname: 'surname',
-mailNickname: 'mailNickname',
-mail: 'mail',
-
-// Account
-accountEnabled: 'accountEnabled',
-password: null, // handled separately -> passwordProfile
-forceChangePasswordNextSignIn: null, // handled separately -> passwordProfile
-usageLocation: 'usageLocation',
-preferredLanguage: 'preferredLanguage',
-userType: 'userType',
-
-// Job info
-jobTitle: 'jobTitle',
-department: 'department',
-companyName: 'companyName',
-employeeId: 'employeeId',
-employeeType: 'employeeType',
-employeeHireDate: 'employeeHireDate',
-
-// Contact
-mobilePhone: 'mobilePhone',
-businessPhone: null, // -> businessPhones[]
-officeLocation: 'officeLocation',
-
-// Address
-streetAddress: 'streetAddress',
-city: 'city',
-state: 'state',
-postalCode: 'postalCode',
-country: 'country',
-
-// Org chart
-manager: null, // handled separately after user creation/update
-};
-
 function toTitleCase(str) {
   if (!str) return '';
   return str.toLowerCase().split(' ').filter(Boolean).map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
