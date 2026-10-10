@@ -1,0 +1,34 @@
+test/sync-check.test.js
+  s_6331093fffd074::t_94c0c378f6cd53 81,94,116,125-126
+src/validators/excel-rules.js
+  s_6331093fffd074::t_94c0c378f6cd53 194-196,215
+README.md
+  s_6331093fffd074::t_94c0c378f6cd53 414,416
+src/commands/sync-check.js
+  s_6331093fffd074::t_94c0c378f6cd53 13-14,54-58,64
+src/index.js
+  s_6331093fffd074::t_94c0c378f6cd53 346
+test/excel-rules.test.js
+  s_6331093fffd074::t_94c0c378f6cd53 221,223,230,238
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0854ed835d83a7e4e7f16cf400b4d9b020885060",
+  "prompts": {},
+  "humans": {
+    "h_3aa52f59e1a7c5": {
+      "author": "Guillermo López <willyaranda@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_6331093fffd074": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3d09a663-2c9d-450b-97e0-07a28e2307e1",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Guillermo López <willyaranda@gmail.com>"
+    }
+  }
+}
