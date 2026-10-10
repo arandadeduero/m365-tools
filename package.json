@@ -17,11 +17,13 @@
       "test/**/*.test.js"
     ],
     "concurrency": 1,
+    "workerThreads": false,
     "nodeArguments": [
       "--experimental-vm-modules"
     ]
   },
   "c8": {
+    "all": true,
     "reporter": [
       "text",
       "lcov"

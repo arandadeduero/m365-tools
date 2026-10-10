@@ -274,7 +274,7 @@ export async function fixOrgChart() {
  *
  * @returns {{ noManager: User[], wrongRoot: User[], cycles: User[][] }}
  */
-function analyseOrgTree(users, managerMap, rootId, byId) {
+export function analyseOrgTree(users, managerMap, rootId, byId) {
   const noManager  = [];
   const wrongRoot  = [];
   const cycles     = [];
@@ -306,7 +306,10 @@ function analyseOrgTree(users, managerMap, rootId, byId) {
       current = nextId;
     }
 
-    if (hasCycle && !cycleIds.has(user.id)) {
+    if (hasCycle) {
+      // Already reported as a member of an earlier cycle — don't list it again
+      if (cycleIds.has(user.id)) continue;
+
       // Collect the cycle members
       const cycleMembers = [user];
       let c = managerMap.get(user.id);

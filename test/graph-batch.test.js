@@ -1,10 +1,5 @@
 import test from 'ava';
-import { mkdtemp, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-
-const tmpHome = await mkdtemp(join(tmpdir(), 'm365-batch-test-'));
-process.env.HOME = tmpHome;
+import { cleanupHome } from './helpers/home.js';
 
 const { initAuth, _setFakeToken, _clearFakeToken } = await import('../src/auth.js');
 
@@ -12,9 +7,9 @@ test.before(() => {
   initAuth({ tenantId: 'test-t', clientId: 'test-c', scopes: [] });
 });
 
-test.after.always(async () => {
+test.after.always(() => {
   _clearFakeToken();
-  await rm(tmpHome, { recursive: true, force: true });
+  cleanupHome();
 });
 
 test.serial('fetchManagerMap: throws with correct message for non-OK HTTP responses', async (t) => {

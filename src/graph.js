@@ -214,7 +214,7 @@ export async function listAllUsers({ onlyDisabled = false, checkManager = false,
   const select = [
     'id', 'userPrincipalName', 'displayName', 'givenName', 'surname',
     'mail', 'jobTitle', 'department', 'companyName', 'officeLocation',
-    'accountEnabled', 'userType', 'employeeId', 'employeeType',
+    'accountEnabled', 'userType', 'employeeId', 'employeeType', 'employeeHireDate',
     'signInActivity', 'lastPasswordChangeDateTime',
   ];
 
