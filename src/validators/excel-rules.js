@@ -191,6 +191,9 @@ const ruleFechaDeBaja = {
 
       if (value === '') return; // empty is fine — not all employees have a leaving date
 
+      // Any date is accepted, including a future one: a leaving date can be
+      // recorded in advance and only takes effect the day after (see sync-check).
+
       if (!DATE_RE.test(value)) {
         issues.push({
           row: rowNum,
@@ -206,60 +209,7 @@ const ruleFechaDeBaja = {
 };
 
 // ---------------------------------------------------------------------------
-// Rule: Fecha de Baja — if filled and valid, must not be in the future
-// ---------------------------------------------------------------------------
-
-/**
- * Parse a dd/mm/yyyy string into a Date at midnight local time.
- * Returns null if the string doesn't match the expected format.
- */
-function parseDMY(value) {
-  const match = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-  if (!match) return null;
-  const [, dd, mm, yyyy] = match;
-  return new Date(Number(yyyy), Number(mm) - 1, Number(dd));
-}
-
-const ruleFechaDeBajaNotFuture = {
-  id: 'fecha-de-baja-not-future',
-  description: 'Fecha de Baja, if filled with a valid date, must be today or in the past',
-  validate(rows) {
-    const issues = [];
-    // Compare against the start of today (midnight local time) so today itself is allowed.
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    rows.forEach((row, i) => {
-      const rowNum = i + 1;
-      const value = row['Fecha de Baja'] ?? '';
-
-      if (value === '') return; // no leaving date — nothing to check
-
-      const date = parseDMY(value);
-      if (!date) return; // invalid format — already caught by fecha-de-baja-format rule
-
-      if (date > today) {
-        issues.push({
-          row: rowNum,
-          column: 'Fecha de Baja',
-          value,
-          message: `Leaving date is in the future (today is ${
-            String(today.getDate()).padStart(2, '0') +
-            '/' +
-            String(today.getMonth() + 1).padStart(2, '0') +
-            '/' +
-            today.getFullYear()
-          })`,
-        });
-      }
-    });
-
-    return issues;
-  },
-};
-
-// ---------------------------------------------------------------------------
 // Exported rule list — add new rules here
 // ---------------------------------------------------------------------------
 
-export const RULES = [ruleIdEmpleado, ruleEmail, ruleEmailUnique, ruleIdResponsable, ruleFechaDeBaja, ruleFechaDeBajaNotFuture];
+export const RULES = [ruleIdEmpleado, ruleEmail, ruleEmailUnique, ruleIdResponsable, ruleFechaDeBaja];

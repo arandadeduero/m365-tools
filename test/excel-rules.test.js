@@ -218,57 +218,23 @@ test('fecha-de-baja-format: undefined value treated as empty (ok)', (t) => {
   t.deepEqual(ruleFormat.validate(rows), []);
 });
 
-// ---------------------------------------------------------------------------
-// Rule: fecha-de-baja-not-future
-// ---------------------------------------------------------------------------
-
-const ruleNotFuture = rule('fecha-de-baja-not-future');
-
-test('fecha-de-baja-not-future: past date passes', (t) => {
-  const rows = [{ 'Fecha de Baja': '01/01/2000' }];
-  t.deepEqual(ruleNotFuture.validate(rows), []);
-});
-
-test('fecha-de-baja-not-future: future date is an issue', (t) => {
+test('fecha-de-baja-format: a future date is valid (leaving dates can be recorded in advance)', (t) => {
   const rows = [{ 'Fecha de Baja': '01/01/2099' }];
-  const issues = ruleNotFuture.validate(rows);
-  t.is(issues.length, 1);
-  t.is(issues[0].column, 'Fecha de Baja');
-  t.regex(issues[0].message, /future/i);
-});
-
-test('fecha-de-baja-not-future: today is allowed', (t) => {
-  const now = new Date();
-  const dd = String(now.getDate()).padStart(2, '0');
-  const mm = String(now.getMonth() + 1).padStart(2, '0');
-  const yyyy = now.getFullYear();
-  const rows = [{ 'Fecha de Baja': `${dd}/${mm}/${yyyy}` }];
-  t.deepEqual(ruleNotFuture.validate(rows), []);
-});
-
-test('fecha-de-baja-not-future: empty value is skipped', (t) => {
-  const rows = [{ 'Fecha de Baja': '' }];
-  t.deepEqual(ruleNotFuture.validate(rows), []);
-});
-
-test('fecha-de-baja-not-future: invalid format is skipped (other rule handles it)', (t) => {
-  const rows = [{ 'Fecha de Baja': 'bad-format' }];
-  t.deepEqual(ruleNotFuture.validate(rows), []);
+  t.deepEqual(RULES.flatMap((r) => r.validate(rows).filter((i) => i.column === 'Fecha de Baja')), []);
 });
 
 // ---------------------------------------------------------------------------
 // RULES array export
 // ---------------------------------------------------------------------------
 
-test('RULES array contains all 6 rules', (t) => {
+test('RULES array contains all 5 rules', (t) => {
   const expectedIds = [
     'id_empleado-required-unique',
     'email-required-domain',
     'email-unique',
     'id_responsable-exists',
     'fecha-de-baja-format',
-    'fecha-de-baja-not-future',
   ];
-  t.is(RULES.length, 6);
+  t.is(RULES.length, 5);
   t.deepEqual(RULES.map((r) => r.id), expectedIds);
 });

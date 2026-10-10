@@ -10,7 +10,8 @@
  *   without a domain email are flagged separately as a data gap.
  *
  * Check 2 — Must be disabled in cloud:
- *   Employees with a past/present Fecha de Baja and an @arandadeduero.es email
+ *   Employees whose Fecha de Baja is yesterday or older and who have an
+ *   @arandadeduero.es email
  *   must have accountEnabled = false in M365.
  *
  * Check 3 — Cloud-only accounts:
@@ -50,12 +51,17 @@ function parseDMY(value) {
   return new Date(Number(yyyy), Number(mm) - 1, Number(dd));
 }
 
+/**
+ * A leaving date takes effect the day after: the employee still works on their
+ * Fecha de Baja, so only yesterday or older counts. Today and future dates are
+ * treated as still active.
+ */
 function isEffectiveLeaving(fechaBaja) {
   const date = parseDMY(fechaBaja);
   if (!date) return false;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  return date <= today;
+  return date < today;
 }
 
 // ---------------------------------------------------------------------------

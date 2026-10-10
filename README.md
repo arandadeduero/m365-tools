@@ -345,7 +345,6 @@ m365-users validate usuarios.xlsx
 | `email-unique` | `e_mail` | Debe ser único — no puede repetirse entre trabajadores |
 | `id_responsable-exists` | `ID responsable` | Si está relleno, debe coincidir con un `id_empleado` existente (puede estar vacío para el director/a) |
 | `fecha-de-baja-format` | `Fecha de Baja` | Si está relleno, debe tener formato `dd/mm/yyyy` |
-| `fecha-de-baja-not-future` | `Fecha de Baja` | Si está relleno y es una fecha válida, no puede ser futura |
 
 El informe muestra por cada problema: número de fila, nombre del trabajador, columna afectada, valor incorrecto y descripción del error.
 
@@ -412,9 +411,9 @@ Trabajadores con email `@arandadeduero.es` y sin `Fecha de Baja` deben tener una
 Trabajadores activos (sin `Fecha de Baja`) cuyo email no es `@arandadeduero.es` o está vacío. No se pueden verificar por UPN: es un problema de datos a corregir.
 
 **Check 2 — Cuentas que deben estar deshabilitadas:**
-Trabajadores con una `Fecha de Baja` pasada o de hoy, y con email `@arandadeduero.es`, deben tener su cuenta deshabilitada en M365. Se marcan las cuentas que siguen activas.
+Trabajadores cuya `Fecha de Baja` es de ayer o anterior, y con email `@arandadeduero.es`, deben tener su cuenta deshabilitada en M365. Se marcan las cuentas que siguen activas.
 
-> Las fechas de baja futuras no cuentan como salida efectiva y no se incluyen en el Check 2.
+> La baja es efectiva a partir del día siguiente a la `Fecha de Baja`. Si la fecha es de hoy o futura, el trabajador sigue contando como activo: no se incluye en el Check 2 ni se deshabilita, y `validate` no lo marca como error.
 
 **Check 3 — Cuentas en la nube que no aparecen en el Excel:**
 Compara todas las cuentas **activas** `@arandadeduero.es` de M365 contra los emails encontrados en **ambas** hojas del Excel (`ACTIVOS` y, si existe, `CONCEJALES`). Las cuentas de sala (UPN que empieza por `sala-` o `salapz`) se excluyen siempre de este check.

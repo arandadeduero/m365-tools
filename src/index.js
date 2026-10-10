@@ -343,7 +343,7 @@ program
   .description(
     'Cross-reference the employee Excel file with Microsoft 365 and report sync issues.\n' +
     `  Check 1: Active employees (${REQUIRED_DOMAIN}, no Fecha de Baja) must have an M365 account.\n` +
-    '  Check 2: Employees with a Fecha de Baja must have their cloud account disabled.\n' +
+    '  Check 2: Employees whose Fecha de Baja is yesterday or older must have their cloud account disabled.\n' +
     '  Use --disable-left-workers to disable and unlicense Check 2 accounts (with double confirmation).'
   )
   .option('--disable-left-workers', 'Disable and remove licences from accounts that should be disabled (Check 2)')

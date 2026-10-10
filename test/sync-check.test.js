@@ -78,6 +78,7 @@ test.serial('sync-check: each kind of mismatch lands in its own check', async (t
       ['OK ACTIVE',        at('ok'),          ''],
       ['MISSING ACTIVE',   at('missing'),     ''],
       ['LEFT STILL ON',    at('left'),        dmy(-30)],
+      ['LEFT YESTERDAY',   at('yesterday'),   dmy(-1)],
       ['LEAVES TODAY',     at('today'),       dmy(0)],
       ['LEAVES NEXT WEEK', at('future'),      dmy(7)],
       ['GMAIL PERSON',     'someone@gmail.com', ''],
@@ -90,6 +91,7 @@ test.serial('sync-check: each kind of mismatch lands in its own check', async (t
     users: [
       cloudUser('ok'),
       cloudUser('left'),
+      cloudUser('yesterday'),
       cloudUser('today'),
       cloudUser('future'),
       cloudUser('mayus'),
@@ -111,6 +113,7 @@ test.serial('sync-check: each kind of mismatch lands in its own check', async (t
   t.false(check1a.includes('OK ACTIVE'));
   t.false(check1a.includes('UPPERCASE MAIL'), 'email comparison is case-insensitive');
   t.false(check1a.includes('LEAVES NEXT WEEK'), 'a future Fecha de Baja still counts as active');
+  t.false(check1a.includes('LEAVES TODAY'));
 
   const check1b = section(output, '● Check 1b');
   t.true(check1b.includes('GMAIL PERSON'));
@@ -119,7 +122,8 @@ test.serial('sync-check: each kind of mismatch lands in its own check', async (t
 
   const check2 = section(output, '● Check 2');
   t.true(check2.includes('LEFT STILL ON'));
-  t.true(check2.includes('LEAVES TODAY'), 'a Fecha de Baja of today is already effective');
+  t.true(check2.includes('LEFT YESTERDAY'), 'effective from the day after the Fecha de Baja');
+  t.false(check2.includes('LEAVES TODAY'), 'the last working day is still active');
   t.false(check2.includes('LEAVES NEXT WEEK'));
 
   const check3 = section(output, '● Check 3');
