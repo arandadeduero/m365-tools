@@ -1,0 +1,29 @@
+src/constants.js
+  s_6331093fffd074::t_a92e46dab401de 3-14
+src/commands/sync-check.js
+  s_6331093fffd074::t_a92e46dab401de 20-21,42,289-290,309,313-314,320-330
+  s_6331093fffd074::t_31f62a11034827 331
+CLAUDE.md
+  s_6331093fffd074::t_a92e46dab401de 45
+test/sync-check.test.js
+  s_6331093fffd074::t_a92e46dab401de 8,179-250
+  s_6331093fffd074::t_20dd628640e96a 251
+README.md
+  s_6331093fffd074::t_a92e46dab401de 421-423
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cb9608b64b8523c1a89f2612754994db7cbbe982",
+  "prompts": {},
+  "sessions": {
+    "s_6331093fffd074": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3d09a663-2c9d-450b-97e0-07a28e2307e1",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Guillermo López <willyaranda@gmail.com>"
+    }
+  }
+}
