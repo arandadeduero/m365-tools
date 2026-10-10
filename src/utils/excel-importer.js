@@ -9,6 +9,26 @@ function toTitleCase(str) {
 }
 
 /**
+ * Parse a hire date. The employee file writes dd/mm/yyyy (and excel.js renders
+ * Date cells that way), which `new Date()` would misread as mm/dd/yyyy, so that
+ * format is handled explicitly and anchored to midnight UTC to keep the calendar
+ * day stable. Anything else is treated as ISO 8601.
+ * @returns {Date|null} null when the value is not a real date
+ */
+function parseHireDate(value) {
+  const dmy = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (dmy) {
+    const [, dd, mm, yyyy] = dmy.map(Number);
+    const date = new Date(Date.UTC(yyyy, mm - 1, dd));
+    // Reject overflow such as 31/02/2020, which Date would roll into March
+    const valid = date.getUTCFullYear() === yyyy && date.getUTCMonth() === mm - 1 && date.getUTCDate() === dd;
+    return valid ? date : null;
+  }
+  const date = new Date(value);
+  return isNaN(date.getTime()) ? null : date;
+}
+
+/**
  * Maps Spanish Excel headers to internal property names.
  */
 function normalizeRow(row, domain) {
@@ -146,10 +166,10 @@ export function rowToUserPayload(row) {
     userPayload.businessPhones = [row.businessPhone.trim()];
   }
 
-  // employeeHireDate: validate ISO 8601
+  // employeeHireDate: dd/mm/yyyy (employee file) or ISO 8601
   if (row.employeeHireDate && row.employeeHireDate.trim() !== '') {
-    const date = new Date(row.employeeHireDate.trim());
-    if (!isNaN(date.getTime())) {
+    const date = parseHireDate(row.employeeHireDate.trim());
+    if (date) {
       userPayload.employeeHireDate = date.toISOString();
     }
   }

@@ -14,7 +14,8 @@ function getChanges(payload, existing) {
   const fieldsToCheck = [
     'displayName', 'givenName', 'surname', 'jobTitle', 'department',
     'mobilePhone', 'officeLocation', 'city', 'state', 'postalCode',
-    'country', 'usageLocation', 'preferredLanguage', 'employeeId', 'employeeType'
+    'country', 'usageLocation', 'preferredLanguage', 'employeeId', 'employeeType',
+    'employeeHireDate'
   ];
 
   for (const field of fieldsToCheck) {
@@ -26,6 +27,17 @@ function getChanges(payload, existing) {
       const pStr = pValue != null ? String(pValue).trim() : '';
       const eStr = eValue != null ? String(eValue).trim() : '';
       if (pValue !== undefined && pStr !== eStr) {
+        changes.push({
+          field,
+          old: eValue ?? '(null)',
+          new: pValue
+        });
+      }
+    } else if (field === 'employeeHireDate') {
+      // Graph returns "2020-03-05T00:00:00Z" while the payload carries milliseconds,
+      // so compare the instants rather than the strings
+      const same = eValue != null && new Date(eValue).getTime() === new Date(pValue).getTime();
+      if (pValue !== undefined && !same) {
         changes.push({
           field,
           old: eValue ?? '(null)',

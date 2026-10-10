@@ -1,12 +1,8 @@
 import test from 'ava';
 import { join } from 'node:path';
-import { mkdtemp, rm, stat } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-
-// Set HOME to a temp dir BEFORE the module is imported so CONFIG_DIR
-// points to our isolated directory instead of ~/.config/m365-users.
-const tmpHome = await mkdtemp(join(tmpdir(), 'm365-users-test-'));
-process.env.HOME = tmpHome;
+import { stat } from 'node:fs/promises';
+// Must come before the src import: CONFIG_DIR is resolved at import time.
+import { cleanupHome } from './helpers/home.js';
 
 const {
   saveToken,
@@ -24,9 +20,7 @@ test.beforeEach(async () => {
   await clearToken();
 });
 
-test.after.always(async () => {
-  await rm(tmpHome, { recursive: true, force: true });
-});
+test.after.always(() => cleanupHome());
 
 // ---------------------------------------------------------------------------
 // isTokenExpired (pure, no I/O)

@@ -171,9 +171,78 @@ test('stripPasswordFromPayload: returns object unchanged if no passwordProfile',
 // ---------------------------------------------------------------------------
 
 test('parseExcel: header-only Excel returns zero rows and zero errors', async (t) => {
-  t.pass();
+  const path = await createTestExcel('header-only.xlsx', [
+    ['userPrincipalName', 'displayName', 'mailNickname'],
+  ]);
+  const { rows, errors } = await parseExcel(path, 'contoso.com');
+  t.deepEqual(rows, []);
+  t.deepEqual(errors, []);
 });
 
-test('parseExcel: whitespace-only userPrincipalName is treated as missing', async (t) => {
-  t.pass();
+test('parseExcel: a row without userPrincipalName is rejected with its sheet row number', async (t) => {
+  const path = await createTestExcel('missing-upn.xlsx', [
+    ['userPrincipalName', 'displayName', 'mailNickname'],
+    ['ok@contoso.com', 'Ok User', 'ok'],
+    ['', 'No Upn', 'noupn'],
+  ]);
+  const { rows, errors } = await parseExcel(path, 'contoso.com');
+  t.is(rows.length, 1);
+  t.deepEqual(errors, [
+    { row: 3, upn: '(unknown)', errors: ['Missing required field: userPrincipalName'] },
+  ]);
+});
+
+// ---------------------------------------------------------------------------
+// employeeHireDate — the employee file uses dd/mm/yyyy
+// ---------------------------------------------------------------------------
+
+const hireDate = (value) => rowToUserPayload({
+  userPrincipalName: 'jdoe@contoso.com',
+  displayName: 'John Doe',
+  mailNickname: 'jdoe',
+  employeeHireDate: value,
+}).userPayload.employeeHireDate;
+
+test('rowToUserPayload: dd/mm/yyyy hire date keeps its day and month', (t) => {
+  // new Date('05/03/2020') would read this as 3 May
+  t.is(hireDate('05/03/2020'), '2020-03-05T00:00:00.000Z');
+});
+
+test('rowToUserPayload: dd/mm/yyyy hire date with day > 12 is not dropped', (t) => {
+  t.is(hireDate('25/03/2020'), '2020-03-25T00:00:00.000Z');
+});
+
+test('rowToUserPayload: hire date accepts single-digit day and month', (t) => {
+  t.is(hireDate('5/3/2020'), '2020-03-05T00:00:00.000Z');
+});
+
+test('rowToUserPayload: hire date tolerates surrounding whitespace', (t) => {
+  t.is(hireDate('  31/12/1999 '), '1999-12-31T00:00:00.000Z');
+});
+
+test('rowToUserPayload: ISO 8601 hire dates still work', (t) => {
+  t.is(hireDate('2020-03-05'), '2020-03-05T00:00:00.000Z');
+  t.is(hireDate('2020-03-05T08:30:00Z'), '2020-03-05T08:30:00.000Z');
+});
+
+test('rowToUserPayload: impossible or unparseable hire dates are omitted', (t) => {
+  t.is(hireDate('31/02/2020'), undefined);
+  t.is(hireDate('00/01/2020'), undefined);
+  t.is(hireDate('15/13/2020'), undefined);
+  t.is(hireDate('pendiente'), undefined);
+  t.is(hireDate('   '), undefined);
+});
+
+test('parseExcel + rowToUserPayload: a real Date cell under "Fecha de Alta" keeps its calendar day', async (t) => {
+  const path = await createTestExcel('hire-date-cell.xlsx', [
+    ['Trabajador', 'e_mail', 'Fecha de Alta'],
+    ['DOE, JOHN', 'jdoe@contoso.com', new Date(2021, 0, 7)],
+    ['ROE, JANE', 'jroe@contoso.com', '19/11/2018'],
+  ]);
+  const { rows, errors } = await parseExcel(path, 'contoso.com');
+  t.deepEqual(errors, []);
+  t.deepEqual(rows.map((r) => rowToUserPayload(r).userPayload.employeeHireDate), [
+    '2021-01-07T00:00:00.000Z',
+    '2018-11-19T00:00:00.000Z',
+  ]);
 });

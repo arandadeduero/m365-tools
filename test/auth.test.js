@@ -1,7 +1,8 @@
 import test from 'ava';
-import { mkdtemp, rm, stat } from 'node:fs/promises';
+import { mkdir, writeFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
-import { tmpdir, homedir } from 'node:os';
+// Must come before the src import: logout() deletes the MSAL cache under HOME.
+import { tmpHome, cleanupHome } from './helpers/home.js';
 
 // auth.js tests must run serially — they share module-level state (_config, _msalApp)
 // and touch the filesystem (MSAL cache file).
@@ -19,11 +20,13 @@ const FAKE_CONFIG = {
   scopes:   ['User.ReadWrite.All'],
 };
 
-const CACHE_FILE = join(homedir(), '.config', 'm365-users', 'msal-cache.json');
+const CACHE_FILE = join(tmpHome, '.config', 'm365-users', 'msal-cache.json');
 
 test.beforeEach(() => {
   initAuth(FAKE_CONFIG);
 });
+
+test.after.always(() => cleanupHome());
 
 // ---------------------------------------------------------------------------
 // initAuth / getDomain
@@ -49,10 +52,11 @@ test.serial('initAuth: config without domain → getDomain returns empty string'
 // ---------------------------------------------------------------------------
 
 test.serial('logout: removes the MSAL cache file if it exists', async (t) => {
-  // logout should not throw even when no cache file exists
+  await mkdir(join(tmpHome, '.config', 'm365-users'), { recursive: true });
+  await writeFile(CACHE_FILE, 'stale');
+
   await t.notThrowsAsync(() => logout());
 
-  // After logout the cache file must not exist
   const exists = await stat(CACHE_FILE).then(() => true).catch(() => false);
   t.false(exists);
 });

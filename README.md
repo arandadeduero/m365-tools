@@ -103,7 +103,7 @@ m365-users logout   # Cerrar sesión y borrar el token guardado
 
 ### `import <archivo.xlsx>`
 
-Importa o actualiza usuarios en masa desde un archivo Excel.
+Crea o actualiza usuarios en masa a partir del Excel de trabajadores (hoja `ACTIVOS`).
 
 ```bash
 m365-users import usuarios.xlsx
@@ -112,33 +112,57 @@ m365-users import usuarios.xlsx
 m365-users import usuarios.xlsx --limit 5
 ```
 
-- `--limit <number>`: Limita la cantidad de usuarios del archivo que se procesarán en esta ejecución.
+- `--limit <number>`: Limita la cantidad de filas válidas que se procesarán en esta ejecución.
+
+> `import` no pide confirmación: escribe en el tenant según va leyendo las filas. Usa `--limit` para una primera pasada.
 
 #### Formato del archivo Excel
 
-Consulta [`sample.csv`](./sample.csv) para ver un ejemplo de las columnas y datos esperados. Nota: `import` requiere un archivo `.xlsx` real (hoja `ACTIVOS`); usa este CSV como referencia de columnas, no como archivo importable directamente.
+El archivo debe ser un `.xlsx` con una hoja llamada `ACTIVOS`; la primera fila son las cabeceras. Se reconocen las cabeceras del listado de trabajadores (sin distinguir mayúsculas de minúsculas):
 
-**Columnas obligatorias:** `userPrincipalName`, `displayName`, `mailNickname`, `password`
-
-**Columnas opcionales:**
-
-| Columna Excel | Campo en Graph API | Notas |
+| Cabecera en el Excel | Campo en Graph API | Notas |
 |---|---|---|
-| `givenName` / `surname` | `givenName` / `surname` | Nombre y apellidos |
-| `accountEnabled` | `accountEnabled` | `true` o `false` |
-| `jobTitle` | `jobTitle` | |
-| `department` | `department` | |
-| `companyName` | `companyName` | |
-| `employeeId` | `employeeId` | |
-| `employeeType` | `employeeType` | Employee, Contractor… |
-| `employeeHireDate` | `employeeHireDate` | Formato ISO 8601 |
+| `e_mail` | `userPrincipalName` | **Obligatorio.** Si no lleva `@`, se añade el `domain` de `config.json`. Si `domain` está configurado, debe terminar en ese dominio. |
+| `Trabajador` | `displayName`, `givenName`, `surname` | **Obligatorio.** `APELLIDOS, NOMBRE` se convierte en `Nombre Apellidos`. |
+| `id_empleado` | `employeeId` | |
+| `Departamento` | `department` | |
+| `Descripción` | `jobTitle` | |
+| `Fecha de Alta` | `employeeHireDate` | `dd/mm/yyyy` (o celda de fecha). También se acepta ISO 8601. Una fecha imposible se ignora. |
+| `ID responsable` | manager | Si es numérico, es el `id_empleado` del responsable y se busca entre los usuarios activos de M365. Si no, se trata como nombre de usuario y se le añade el dominio. |
+
+`mailNickname` se deduce de la parte local del correo si no hay una columna con ese nombre.
+
+También se aceptan directamente como cabecera los nombres de campo de Graph API. [`sample.csv`](./sample.csv) muestra esas columnas (es solo una referencia: `import` necesita un `.xlsx` real):
+
+| Columna | Campo en Graph API | Notas |
+|---|---|---|
+| `givenName` / `surname` | `givenName` / `surname` | |
+| `accountEnabled` | `accountEnabled` | `true` o `false`. Por defecto `true` |
+| `companyName`, `employeeType`, `officeLocation` | ídem | |
 | `mobilePhone` / `businessPhone` | `mobilePhone` / `businessPhones[0]` | |
-| `officeLocation` | `officeLocation` | |
 | `streetAddress`, `city`, `state`, `postalCode`, `country` | Dirección | |
 | `usageLocation` | `usageLocation` | Código ISO 3166-1 (ej. `ES`) |
 | `preferredLanguage` | `preferredLanguage` | ej. `es-ES` |
+| `password` | `passwordProfile.password` | Opcional, solo al crear |
 | `forceChangePasswordNextSignIn` | `passwordProfile` | Por defecto `true` |
-| `manager` | Llamada separada a `setManager` | UPN del manager |
+
+#### Qué hace con cada fila
+
+| Salida | Significado |
+|---|---|
+| `[CREATE]` | El UPN no existe: se crea la cuenta. Si no hay columna `password`, se genera una contraseña temporal (`Palabra-NNNN-Palabra`) con cambio obligatorio en el primer inicio de sesión. |
+| `[UPDATE]` | La cuenta existe y algún campo difiere: se actualiza y se listan los cambios (`Change campo: antes -> después`). Nunca se toca la contraseña ni el `mailNickname`. |
+| `[IS-READY]` | La cuenta existe y ya coincide con el Excel: no se escribe nada. |
+| `[FAILED]` | Graph rechazó la operación; se continúa con la siguiente fila. |
+
+Después, para cada fila: se asigna el responsable solo si es distinto del actual, y se avisa si la cuenta no tiene ninguna licencia.
+
+Las filas sin `e_mail` o `Trabajador`, o con un dominio distinto, se listan al principio como errores de validación y se omiten. Al final se imprime un resumen (creados / actualizados / fallidos / errores de responsable).
+
+#### Limitaciones conocidas
+
+- La contraseña generada para una cuenta nueva **no se muestra**. Ejecuta `reset-password <usuario>` para obtener unas credenciales que entregar.
+- El responsable por `id_empleado` solo se resuelve si su cuenta está activa en M365.
 
 ---
 
@@ -319,7 +343,7 @@ m365-users validate usuarios.xlsx
 | `id_empleado-required-unique` | `id_empleado` | Obligatorio y único en todas las filas |
 | `email-required-domain` | `e_mail` | Obligatorio y debe terminar en `@arandadeduero.es` |
 | `email-unique` | `e_mail` | Debe ser único — no puede repetirse entre trabajadores |
-| `id_responsable-exists` | `ID Responsable` | Si está relleno, debe coincidir con un `id_empleado` existente (puede estar vacío para el director/a) |
+| `id_responsable-exists` | `ID responsable` | Si está relleno, debe coincidir con un `id_empleado` existente (puede estar vacío para el director/a) |
 | `fecha-de-baja-format` | `Fecha de Baja` | Si está relleno, debe tener formato `dd/mm/yyyy` |
 | `fecha-de-baja-not-future` | `Fecha de Baja` | Si está relleno y es una fecha válida, no puede ser futura |
 
@@ -329,7 +353,7 @@ El informe muestra por cada problema: número de fila, nombre del trabajador, co
 
 ### `validate-users`
 
-Lista todos los usuarios de Microsoft 365 junto con su manager y los grupos a los que pertenecen. Útil para auditar membresías de grupos antes de aplicar correcciones.
+Lista los usuarios **activos** de Microsoft 365 junto con su manager y los grupos a los que pertenecen (las cuentas deshabilitadas no se consultan, así que el contador de desactivados es siempre 0). Útil para auditar membresías de grupos antes de aplicar correcciones.
 
 Los grupos automáticos (`Todo Ayuntamiento`, `Todos los usuarios`, `Expertos 365`) se filtran siempre del listado.
 
@@ -393,21 +417,27 @@ Trabajadores con una `Fecha de Baja` pasada o de hoy, y con email `@arandadeduer
 > Las fechas de baja futuras no cuentan como salida efectiva y no se incluyen en el Check 2.
 
 **Check 3 — Cuentas en la nube que no aparecen en el Excel:**
-Compara todas las cuentas `@arandadeduero.es` de M365 contra los emails encontrados en **ambas** hojas del Excel (`ACTIVOS` y, si existe, `CONCEJALES`). Las cuentas de sala (UPN que empieza por `sala-` o `salapz`) se excluyen siempre de este check.
+Compara todas las cuentas **activas** `@arandadeduero.es` de M365 contra los emails encontrados en **ambas** hojas del Excel (`ACTIVOS` y, si existe, `CONCEJALES`). Las cuentas de sala (UPN que empieza por `sala-` o `salapz`) se excluyen siempre de este check.
 
 #### Opción `--disable-left-workers`
 
 Deshabilita y retira las licencias de las cuentas identificadas en el **Check 2** que siguen activas. Muestra una previsualización completa (incluyendo las licencias asignadas y un resumen del total que se va a retirar) y solicita **doble confirmación** antes de realizar ningún cambio.
 
 ```bash
-m365-users sync-check --disable-left-workers
+m365-users sync-check usuarios.xlsx --disable-left-workers
 ```
 
 El proceso por cada cuenta:
 1. Retira todas las licencias asignadas (la cuenta queda sin licencia)
 2. Deshabilita la cuenta (`accountEnabled = false`)
 
-Las cuentas que no se encuentran en la nube se muestran en la previsualización pero se omiten de la operación (no hay nada que deshabilitar).
+Las licencias se retiran antes de deshabilitar; si la retirada falla, esa cuenta **no** se deshabilita y se informa del error. Los trabajadores de baja que ya no tienen cuenta activa en la nube no aparecen (no hay nada que hacer).
+
+Si se rechaza cualquiera de las dos confirmaciones no se modifica nada.
+
+> `sync-check` solo consulta las cuentas **activas** de M365. Por eso, en el Check 1a un trabajador activo cuya cuenta existe pero está deshabilitada aparece como "no encontrado".
+
+**Códigos de salida:** `0` si todo está sincronizado (o si todas las correcciones se aplicaron); `1` si hay incidencias, se cancela la operación o falla alguna corrección.
 
 ---
 
@@ -458,37 +488,57 @@ m365-users -c /ruta/a/otro-config.json list
 
 ```
 m365-users/
-├── sample.csv               # Referencia de columnas para importación (no importable directamente, ver arriba)
+├── CLAUDE.md               # Guía para trabajar en el código con Claude Code
+├── sample.csv              # Referencia de columnas para importación (no importable directamente)
 ├── config.example.json     # Plantilla de configuración (sin credenciales reales)
 ├── config.json             # Tu configuración real (gitignoreado)
 ├── package.json
-└── src/
-    ├── index.js            # Punto de entrada CLI
-    ├── auth.js             # Autenticación (Device Code Flow + caché MSAL cifrada)
-    ├── constants.js        # Constantes compartidas (dominio requerido)
-    ├── graph.js            # Cliente de Microsoft Graph API (con caché en memoria)
-    ├── commands/
-    │   ├── import.js       # Importación masiva desde Excel
-    │   ├── search.js       # Búsqueda de usuarios
-    │   ├── edit.js         # Editor interactivo
-    │   ├── list.js         # Listado con filtros (incluye grupos y ID empleado)
-    │   ├── assign-manager.js  # Asignación masiva de manager
-    │   ├── fix.js          # Correcciones de calidad de datos (job-titles, org-chart, timezone)
-    │   ├── fix-timezone.js # Corrección masiva de zona horaria de buzón (Romance Standard Time)
-    │   ├── validate.js     # Validación del Excel de trabajadores
-    │   ├── validate-users.js  # Listado de usuarios con sus grupos
-    │   ├── sync-check.js   # Comprobación de sincronización con M365
-    │   └── reset-password.js    # Restablecimiento de contraseña con enlace mailto:
-    ├── validators/
-    │   └── excel-rules.js    # Reglas de validación del Excel
-    └── utils/
-        ├── ansi.js         # Eliminación de códigos de escape ANSI
-        ├── cache.js        # Caché en memoria para datos de Graph API (usuarios, grupos, etc.)
-        ├── excel-importer.js       # Parseo y validación de Excel
-        ├── excel.js        # Lectura de archivos .xlsx (hojas ACTIVOS y CONCEJALES)
-        ├── token-store.js  # Almacenamiento cifrado genérico (AES-256-GCM)
-        └── upn.js          # Utilidades para UPN
+├── src/
+│   ├── index.js            # Punto de entrada CLI (definición de comandos)
+│   ├── auth.js             # Autenticación (Device Code Flow + caché MSAL cifrada)
+│   ├── constants.js        # Constantes compartidas (dominio requerido)
+│   ├── graph.js            # Único módulo que llama a Microsoft Graph (con caché en memoria)
+│   ├── commands/
+│   │   ├── import.js           # Importación masiva desde Excel
+│   │   ├── search.js           # Búsqueda de usuarios y ficha (whoami)
+│   │   ├── edit.js             # Editor interactivo
+│   │   ├── list.js             # Listado con filtros (incluye grupos y licencias)
+│   │   ├── assign-manager.js   # Asignación masiva de manager
+│   │   ├── fix.js              # Correcciones de calidad de datos (job-titles, org-chart)
+│   │   ├── fix-timezone.js     # Corrección masiva de zona horaria de buzón
+│   │   ├── validate.js         # Validación del Excel de trabajadores
+│   │   ├── validate-users.js   # Listado de usuarios con sus grupos
+│   │   ├── sync-check.js       # Comprobación de sincronización con M365
+│   │   └── reset-password.js   # Restablecimiento de contraseña con enlace mailto:
+│   ├── validators/
+│   │   └── excel-rules.js      # Reglas de validación del Excel
+│   └── utils/
+│       ├── ansi.js             # Eliminación de códigos de escape ANSI
+│       ├── cache.js            # Caché en memoria para datos de Graph API
+│       ├── excel-importer.js   # Mapeo de filas del Excel a usuarios de Graph
+│       ├── excel.js            # Lectura de archivos .xlsx (hojas ACTIVOS y CONCEJALES)
+│       ├── token-store.js      # Almacenamiento cifrado genérico (no usado por la CLI)
+│       └── upn.js              # Utilidades para UPN
+└── test/
+    ├── *.test.js           # Tests (ava)
+    └── helpers/            # Tenant simulado, prompts simulados, HOME temporal, generador de Excel
 ```
+
+---
+
+## Desarrollo y tests
+
+```bash
+npm test                # Ejecuta todos los tests
+npm run test:coverage   # Tests + informe de cobertura (texto y lcov en coverage/)
+npx ava test/import.test.js   # Un solo archivo
+```
+
+Los tests **no necesitan `config.json`, ni sesión iniciada, ni conexión**: ejecutan los comandos completos contra un tenant simulado (se sustituye `fetch`) y contra archivos Excel generados al vuelo. Tampoco tocan `~/.config/m365-users`: cada archivo de test se ejecuta con un `HOME` temporal.
+
+Para los comandos que modifican el tenant, los tests comprueban exactamente qué peticiones de escritura se envían, y que no se envía ninguna cuando se rechaza una confirmación o se usa `--dry-run`.
+
+La integración continua (GitHub Actions, `.github/workflows/ci.yml`) ejecuta `npm test` con Node 24 en cada push a `main` y en cada pull request.
 
 ---
 
