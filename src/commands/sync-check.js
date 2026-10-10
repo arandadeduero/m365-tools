@@ -17,6 +17,8 @@
  * Check 3 — Cloud-only accounts:
  *   Users that exist in M365 with an @arandadeduero.es email but do not appear
  *   in the Excel file at all (neither as active nor as left employees).
+ *   Accounts listed in SPECIAL_ACCOUNTS (constants.js) are expected to be
+ *   cloud-only: they are not issues, but are printed as a warning to review.
  *
  * --fix flag (Check 2 only):
  *   Prints the list of accounts to act on, asks for double confirmation, then
@@ -37,7 +39,7 @@ import inquirer from 'inquirer';
 import ora from 'ora';
 import { readExcel } from '../utils/excel.js';
 import { listAllUsers, updateUser, getUserLicenses, removeAllLicenses } from '../graph.js';
-import { REQUIRED_DOMAIN } from '../constants.js';
+import { REQUIRED_DOMAIN, SPECIAL_ACCOUNTS } from '../constants.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -284,6 +286,8 @@ export async function syncCheckCommand(filePath, { fix = false } = {}) {
   const missing = [];
   const notDisabled = [];
   const cloudOnly = [];
+  const specialFound = []; // whitelisted cloud-only accounts — warning, not an issue
+  const specialAccounts = new Set(SPECIAL_ACCOUNTS);
 
   for (const [upn, info] of mustExist) {
     if (!cloudMap.has(upn)) missing.push(info);
@@ -302,15 +306,28 @@ export async function syncCheckCommand(filePath, { fix = false } = {}) {
     if (!upn.endsWith(REQUIRED_DOMAIN)) continue;
     if (upn.startsWith('sala-') || upn.startsWith('salapz')) continue; // Skip room accounts
     if (allExcelEmails.has(upn)) continue; // Skip if in ACTIVOS or CONCEJALES
-    cloudOnly.push({
+    const entry = {
       name: cloudUser.displayName ?? '',
       email: upn,
       accountEnabled: cloudUser.accountEnabled,
-    });
+    };
+    (specialAccounts.has(upn) ? specialFound : cloudOnly).push(entry);
   }
 
   // ── 5. Print report ────────────────────────────────────────────────────────
   const totalIssues = missing.length + notDisabled.length + noEmail.length + cloudOnly.length;
+
+  // Special accounts — shown on every run, never counted as issues
+  if (specialFound.length > 0) {
+    console.log(chalk.bold.yellow('⚠ Special accounts present in M365 (not in the Excel file by design)'));
+    console.log(
+      chalk.gray('  These accounts are allowed to exist without an Excel row. Check that they are still needed.\n'),
+    );
+    for (const info of specialFound) {
+      console.log(`  ${chalk.yellow('⚠')} ${chalk.green(info.name.padEnd(40))}  ${chalk.cyan(info.email)}`);
+    }
+    console.log('');
+  }
 
   if (totalIssues === 0) {
     console.log(chalk.green('✔  Everything is in sync — no issues found!'));

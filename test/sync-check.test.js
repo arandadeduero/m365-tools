@@ -5,7 +5,7 @@ import { writeWorkbook, dmy } from './helpers/excel.js';
 
 const { initAuth, _setFakeToken, _clearFakeToken } = await import('../src/auth.js');
 const { syncCheckCommand } = await import('../src/commands/sync-check.js');
-const { DOMAIN } = await import('../src/constants.js');
+const { DOMAIN, SPECIAL_ACCOUNTS } = await import('../src/constants.js');
 
 test.before(() => {
   initAuth({ tenantId: 't', clientId: 'c', domain: DOMAIN });
@@ -174,6 +174,79 @@ test.serial('sync-check: Graph failure while listing users → exit 1', async (t
   const { exitCode, output } = await runCommand(() => syncCheckCommand(file));
   t.is(exitCode, 1);
   t.true(output.includes('Failed to fetch users from M365'));
+});
+
+// ---------------------------------------------------------------------------
+// Special accounts (allowed to be cloud-only)
+// ---------------------------------------------------------------------------
+
+test('SPECIAL_ACCOUNTS: the agreed list, as full lowercase UPNs', (t) => {
+  t.deepEqual(SPECIAL_ACCOUNTS, [
+    at('asac'),
+    at('info_practicas1'),
+    at('lector01agua'),
+    at('consultorahyk'),
+    at('lector02agua'),
+  ]);
+});
+
+test.serial('sync-check: special accounts are warned about but are not issues → exit 0', async (t) => {
+  const file = await writeWorkbook({ ACTIVOS: [HEADERS, ['ANA', at('ana'), '']] });
+  const calls = tenant(t, {
+    users: [
+      cloudUser('ana'),
+      cloudUser('asac'),
+      // Graph may return any casing
+      { ...cloudUser('lector01agua'), userPrincipalName: at('Lector01Agua') },
+    ],
+  });
+
+  const { exitCode, output } = await runCommand(() => syncCheckCommand(file));
+
+  t.is(exitCode, 0);
+  t.true(output.includes('Everything is in sync'));
+  const warning = section(output, '⚠ Special accounts present in M365');
+  t.true(warning.includes(at('asac')));
+  t.true(warning.includes(at('lector01agua')));
+  t.false(warning.includes(at('ana')));
+  t.false(output.includes('● Check 3'));
+  t.deepEqual(writes(calls), []);
+});
+
+test.serial('sync-check: special accounts stay out of Check 3 and of the issue count', async (t) => {
+  const file = await writeWorkbook({ ACTIVOS: [HEADERS, ['ANA', at('ana'), '']] });
+  tenant(t, { users: [cloudUser('ana'), cloudUser('stranger'), ...SPECIAL_ACCOUNTS.map((upn) => cloudUser(upn.split('@')[0]))] });
+
+  const { exitCode, output } = await runCommand(() => syncCheckCommand(file));
+
+  t.is(exitCode, 1);
+  const check3 = section(output, '● Check 3');
+  t.true(check3.includes(at('stranger')));
+  for (const upn of SPECIAL_ACCOUNTS) {
+    t.false(check3.includes(upn), upn);
+    t.true(output.includes(upn), `${upn} is listed in the warning`);
+  }
+  t.true(output.includes('1 sync issue(s) found'));
+});
+
+test.serial('sync-check: no warning when no special account exists in the cloud', async (t) => {
+  const file = await writeWorkbook({ ACTIVOS: [HEADERS, ['ANA', at('ana'), '']] });
+  tenant(t, { users: [cloudUser('ana')] });
+
+  const { exitCode, output } = await runCommand(() => syncCheckCommand(file));
+
+  t.is(exitCode, 0);
+  t.false(output.includes('Special accounts'));
+});
+
+test.serial('sync-check: a special account that is in the Excel is treated like any employee', async (t) => {
+  const file = await writeWorkbook({ ACTIVOS: [HEADERS, ['SAC', at('asac'), '']] });
+  tenant(t, { users: [cloudUser('asac')] });
+
+  const { exitCode, output } = await runCommand(() => syncCheckCommand(file));
+
+  t.is(exitCode, 0);
+  t.false(output.includes('Special accounts'));
 });
 
 // ---------------------------------------------------------------------------

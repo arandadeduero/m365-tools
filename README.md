@@ -418,6 +418,9 @@ Trabajadores cuya `Fecha de Baja` es de ayer o anterior, y con email `@arandaded
 **Check 3 — Cuentas en la nube que no aparecen en el Excel:**
 Compara todas las cuentas **activas** `@arandadeduero.es` de M365 contra los emails encontrados en **ambas** hojas del Excel (`ACTIVOS` y, si existe, `CONCEJALES`). Las cuentas de sala (UPN que empieza por `sala-` o `salapz`) se excluyen siempre de este check.
 
+**Cuentas especiales:**
+Algunas cuentas existen en la nube sin fila en el Excel a propósito (buzones compartidos, consultoras, lectores…). Están en la lista `SPECIAL_ACCOUNTS` de [`src/constants.js`](./src/constants.js): `asac`, `info_practicas1`, `lector01agua`, `consultorahyk` y `lector02agua`. No cuentan como incidencia en el Check 3 ni afectan al código de salida, pero si se encuentran activas en M365 se muestran siempre en un aviso (`⚠ Special accounts present in M365`) para recordar que hay que revisarlas. Si una de ellas no existe en la nube no se avisa. Para añadir o quitar cuentas, edita esa lista.
+
 #### Opción `--disable-left-workers`
 
 Deshabilita y retira las licencias de las cuentas identificadas en el **Check 2** que siguen activas. Muestra una previsualización completa (incluyendo las licencias asignadas y un resumen del total que se va a retirar) y solicita **doble confirmación** antes de realizar ningún cambio.

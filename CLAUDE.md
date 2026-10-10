@@ -42,7 +42,7 @@ Requires Node 24+ (`import … with { type: 'json' }`, `import.meta.dirname`). E
 
 **`listAllUsers` only returns enabled accounts** (or only disabled ones with `onlyDisabled`), and always drops `#EXT#` guests. Callers that say "all users" (`sync-check`, `validate-users`, `import`) therefore only see enabled accounts.
 
-**Two sources for the domain.** `config.domain` (via `getDomain()`) completes short usernames and is enforced by `import`. `src/constants.js` hard-codes `arandadeduero.es` and is what `validate`, `sync-check` and `reset-password` use. Other tenant-specific values are hard-coded too: auto-assigned group names in `cache.js`, room-account prefixes (`sala-`, `salapz`) in `sync-check.js`, SharePoint URLs in `reset-password.js`, target timezone in `fix-timezone.js`.
+**Two sources for the domain.** `config.domain` (via `getDomain()`) completes short usernames and is enforced by `import`. `src/constants.js` hard-codes `arandadeduero.es` and is what `validate`, `sync-check` and `reset-password` use. Other tenant-specific values are hard-coded too: auto-assigned group names in `cache.js`, room-account prefixes (`sala-`, `salapz`) in `sync-check.js`, the `SPECIAL_ACCOUNTS` allowed to be cloud-only (in `constants.js`), SharePoint URLs in `reset-password.js`, target timezone in `fix-timezone.js`.
 
 **Exit codes.** `validate`, `sync-check`, `reset-password` and `validate-users` call `process.exit` themselves (0 = clean, 1 = issues or abort). Other commands just return and let `index.js` handle thrown errors.
 
