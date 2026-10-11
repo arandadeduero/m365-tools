@@ -1,0 +1,19 @@
+.github/dependabot.yml
+  s_6331093fffd074::t_bf6fc65ad7eb0a 3-4,15-39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0bb9ef8a6168688a2924cdea52d7efa1c7080c8e",
+  "prompts": {},
+  "sessions": {
+    "s_6331093fffd074": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3d09a663-2c9d-450b-97e0-07a28e2307e1",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Guillermo López <willyaranda@gmail.com>"
+    }
+  }
+}
