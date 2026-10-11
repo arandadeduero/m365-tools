@@ -11,14 +11,14 @@ Node.js CLI that manages the Microsoft 365 users of one specific tenant (Ayuntam
 ## Commands
 
 ```bash
-npm test                 # ava, 230-odd tests, no network, a few seconds
+npm test                 # ava, 240-odd tests, no network, a few seconds
 npm run test:coverage    # c8 + ava; reports every file under src/
 npx ava test/import.test.js              # one file
 npx ava --match '*sync-check*'           # by test title
 node src/index.js validate <file.xlsx>   # the only command that never calls Graph
 ```
 
-Requires Node 24+ (`import … with { type: 'json' }`, `import.meta.dirname`). ESM only, no build step, no linter or formatter configured.
+Requires Node 24+ (`import … with { type: 'json' }`, `import.meta.dirname`); `.nvmrc` pins the major and CI reads it. ESM only, no build step, no linter or formatter configured.
 
 ## Layout
 
@@ -51,7 +51,8 @@ Requires Node 24+ (`import … with { type: 'json' }`, `import.meta.dirname`). E
 ## Conventions
 
 - Code, comments and most CLI output are in English. `README.md` and the `validate-users` output are in Spanish; keep each file in the language it already uses.
-- User-visible changes to a command need the matching README section updated.
+- User-visible changes to a command need the matching README section updated, including its output example and the row in the "Resumen de comandos" table. README examples use made-up people only; never paste output from the real tenant or from `real-excel/`.
+- Prompt types must be ones the installed `inquirer` registers (`select`, not the old `list`). Tests replace `inquirer.prompt`, so only `test/prompt-types.test.js` catches a wrong type.
 - Console output goes through `chalk`; long operations use an `ora` spinner; prompts use `inquirer.prompt`.
 - Underscore-prefixed exports (`_setFakeToken`, `_resetKeyCache`) are test hooks.
 
@@ -74,6 +75,12 @@ const { initAuth, _setFakeToken } = await import('../src/auth.js');
 - `runCommand(fn)` captures output (ANSI stripped) and turns `process.exit(n)` into `{ exitCode: n }`.
 - Tests that use these helpers must be `test.serial` (they patch globals).
 - The cache cannot be reset, so give each test its own user IDs/UPNs. Each test file runs in its own process.
+
+## CI and dependencies
+
+- `.github/workflows/ci.yml` runs `npm test` on every push to `main` and on every pull request.
+- Dependabot (`.github/dependabot.yml`) opens one grouped PR per ecosystem (npm, GitHub Actions) for minor and patch updates and a separate PR per major. Its CI may have run against an older base: before merging, run the suite with the PR merged onto current `main`.
+- `@azure/msal-node` handles login and the session cache, which no test exercises end to end. Read the release notes before accepting a major.
 
 ## Known issues
 

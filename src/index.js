@@ -114,9 +114,10 @@ program
 program
   .command('import <excelFile>')
   .description(
-    'Batch import users from an Excel file. Creates new users and updates existing ones.\n' +
-    '  Required columns: userPrincipalName, displayName, mailNickname\n' +
-    '  Optional columns: givenName, surname, jobTitle, department, manager, ...'
+    'Batch import users from the employee Excel file (sheet ACTIVOS). Creates new users and updates existing ones.\n' +
+    '  Required columns: e_mail, Trabajador\n' +
+    '  Optional columns: id_empleado, Departamento, Descripción, Fecha de Alta, ID responsable\n' +
+    '  Writes without asking for confirmation; use --limit for a first pass.'
   )
   .option('--limit <number>', 'Limit the number of users to process', parseInt)
   .action(async (excelFile, options) => {

@@ -239,7 +239,7 @@ export async function fixOrgChart() {
 
   // ── Step 5: let user fix the problems ─────────────────────────────────────
   const { action } = await inquirer.prompt([{
-    type:    'list',
+    type:    'select',
     name:    'action',
     message: 'What do you want to do?',
     choices: [
@@ -404,7 +404,7 @@ async function orgFixLoop(problemUsers, managerMap, byId, domain) {
     choices.push({ name: chalk.bold('Done — exit'), value: '__DONE__' });
 
     const { selectedId } = await inquirer.prompt([{
-      type:     'list',
+      type:     'select',
       name:     'selectedId',
       message:  'Select a user to assign a manager to:',
       choices,
