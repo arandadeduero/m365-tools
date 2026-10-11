@@ -1,5 +1,7 @@
 version: 2
 updates:
+  # Minor and patch updates arrive together in one PR per ecosystem.
+  # Major updates match no group, so each one gets its own PR.
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
@@ -10,3 +12,28 @@ updates:
     open-pull-requests-limit: 10
     labels:
       - "dependencies"
+    groups:
+      npm-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Europe/Madrid"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+    groups:
+      actions-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
