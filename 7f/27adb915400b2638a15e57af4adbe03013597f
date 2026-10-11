@@ -1,0 +1,39 @@
+package.json
+  s_6331093fffd074::t_96e6a75cce22a2 5
+README.md
+  s_6331093fffd074::t_96e6a75cce22a2 929,999
+  s_6331093fffd074::t_4f1d6c948b749f 3-36,135-158,176-211,274-296,330-353,380-407,418-434,447-474,485-506,517-543,568-589,635-671,693-707,760-801,816-838,867-881,883-891,893-897,900-905,907-908,911-912,931-932,940,982-984
+test/prompt-types.test.js
+  s_6331093fffd074::t_1dacf94bfb8367 1-23
+.github/workflows/ci.yml
+  s_6331093fffd074::t_18d0372bcf1e3a 25
+.nvmrc
+  s_6331093fffd074::t_18d0372bcf1e3a 1
+CLAUDE.md
+  s_6331093fffd074::t_18d0372bcf1e3a 14,21,54-55,79-83
+  s_6331093fffd074::t_29ce6c1ebe687e 84
+src/commands/fix.js
+  s_6331093fffd074::t_1dacf94bfb8367 242,407
+LICENSE
+  s_6331093fffd074::t_96e6a75cce22a2 1-21
+src/index.js
+  s_6331093fffd074::t_18d0372bcf1e3a 117-120
+package-lock.json
+  s_6331093fffd074::t_ae07ee39a1877e 11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7f27adb915400b2638a15e57af4adbe03013597f",
+  "prompts": {},
+  "sessions": {
+    "s_6331093fffd074": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3d09a663-2c9d-450b-97e0-07a28e2307e1",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Guillermo López <willyaranda@gmail.com>"
+    }
+  }
+}
