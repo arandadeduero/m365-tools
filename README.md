@@ -958,7 +958,6 @@ m365-users/
 │       ├── cache.js            # Caché en memoria para datos de Graph API
 │       ├── excel-importer.js   # Mapeo de filas del Excel a usuarios de Graph
 │       ├── excel.js            # Lectura de archivos .xlsx (hojas ACTIVOS y CONCEJALES)
-│       ├── token-store.js      # Almacenamiento cifrado genérico (no usado por la CLI)
 │       └── upn.js              # Utilidades para UPN
 └── test/
     ├── *.test.js           # Tests (ava)

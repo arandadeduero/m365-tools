@@ -1,7 +1,6 @@
 import chalk from 'chalk';
 import ora from 'ora';
 import { parseExcel, rowToUserPayload, stripPasswordFromPayload } from '../utils/excel-importer.js';
-import { readExcel } from '../utils/excel.js';
 import { createUser, updateUser, findUserByUpn, setManager, listAllUsers, getUserLicenses, getManager } from '../graph.js';
 import { getDomain } from '../auth.js';
 import { generatePassword } from './reset-password.js';

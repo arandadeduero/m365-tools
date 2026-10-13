@@ -146,31 +146,6 @@ export async function fixJobTitles() {
 /**
  * Print a preview table: UPN | Display Name | Original title | Fixed title
  */
-function printPreviewTable(candidates) {
-  const COL = { upn: 42, name: 28, original: 32, fixed: 32 };
-  const totalWidth = Object.values(COL).reduce((a, b) => a + b, 0) + Object.keys(COL).length - 1;
-  const hr = chalk.gray('─'.repeat(totalWidth));
-
-  console.log(hr);
-  console.log(
-    chalk.bold(pad('UPN / Email',    COL.upn))      + ' ' +
-    chalk.bold(pad('Display Name',   COL.name))     + ' ' +
-    chalk.bold(pad('Current Title',  COL.original)) + ' ' +
-    chalk.bold(pad('→ Fixed Title',  COL.fixed))
-  );
-  console.log(hr);
-
-  for (const u of candidates) {
-    console.log(
-      pad(u.upn,          COL.upn)      + ' ' +
-      pad(u.displayName,  COL.name)     + ' ' +
-      pad(chalk.red(u.original),  COL.original) + ' ' +
-      pad(chalk.green(u.fixed),   COL.fixed)
-    );
-  }
-
-  console.log(hr + '\n');
-}
 
 function pad(str, len) {
   const plain = stripAnsi(str);

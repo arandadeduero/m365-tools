@@ -44,7 +44,6 @@ const _managers = new Map();
 const _userGroups = new Map();
 
 /** Map<userId, Array<{id,skuPartNumber}>>  — licenses from getUserLicenses() */
-const _userLicenses = new Map();
 
 /** Array<{id,displayName}> | null  — full group list from listAllGroups() */
 let _allGroups = null;
@@ -186,16 +185,6 @@ export function setCachedJobTitles(titles) {
 export function seedGroupsMap(groupsMap) {
   for (const [userId, groups] of groupsMap) {
     setCachedUserGroups(userId, groups);
-  }
-}
-
-/**
- * Seed the user-licenses cache from a Map<userId, licenses[]> returned by fetchLicensesMap.
- * Called by list.js after batch fetch.
- */
-export function seedLicensesMap(licensesMap) {
-  for (const [userId, licenses] of licensesMap) {
-    _userLicenses.set(userId, licenses);
   }
 }
 

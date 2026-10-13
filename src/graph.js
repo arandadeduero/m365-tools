@@ -8,8 +8,6 @@ import {
   getCachedDepartments, setCachedDepartments,
   getCachedJobTitles, setCachedJobTitles,
   seedUsers, seedGroupsMap,
-  setGroupName,
-  seedLicensesMap, // Added
 } from './utils/cache.js';
 
 /**

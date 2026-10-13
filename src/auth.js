@@ -22,7 +22,7 @@ import chalk from 'chalk';
 const CONFIG_DIR  = join(os.homedir(), '.config', 'm365-users');
 const CACHE_FILE  = join(CONFIG_DIR, 'msal-cache.json');
 
-// Machine-specific AES-256-GCM key (same derivation as token-store.js)
+// Machine-specific AES-256-GCM key
 const _pbkdf2Password = `${os.hostname()}:${os.userInfo().username}`;
 const _pbkdf2Salt     = new TextEncoder().encode('m365-users-v1');
 let   _cachedKey      = null;

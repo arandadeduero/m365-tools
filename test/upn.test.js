@@ -1,5 +1,5 @@
 import test from 'ava';
-import { normalizeUpn, parseDomain } from '../src/utils/upn.js';
+import { normalizeUpn } from '../src/utils/upn.js';
 
 // ---------------------------------------------------------------------------
 // normalizeUpn
@@ -37,26 +37,4 @@ test('normalizeUpn: handles already-uppercased UPN', (t) => {
 test('normalizeUpn: handles UPN with multiple @ signs', (t) => {
   // Edge case: if already has @, returns as is (even if malformed)
   t.is(normalizeUpn('jdoe@@contoso.com', 'contoso.com'), 'jdoe@@contoso.com');
-});
-
-// ---------------------------------------------------------------------------
-// parseDomain
-// ---------------------------------------------------------------------------
-
-test('parseDomain: extracts domain from a full UPN', (t) => {
-  t.is(parseDomain('jdoe@contoso.com'), 'contoso.com');
-});
-
-test('parseDomain: returns bare domain unchanged', (t) => {
-  t.is(parseDomain('contoso.com'), 'contoso.com');
-});
-
-test('parseDomain: returns empty string for falsy input', (t) => {
-  t.is(parseDomain(null), '');
-  t.is(parseDomain(''), '');
-  t.is(parseDomain(undefined), '');
-});
-
-test('parseDomain: handles subdomain UPN correctly', (t) => {
-  t.is(parseDomain('user@mail.contoso.com'), 'mail.contoso.com');
 });

@@ -11,7 +11,7 @@ Node.js CLI that manages the Microsoft 365 users of one specific tenant (Ayuntam
 ## Commands
 
 ```bash
-npm test                 # ava, 240-odd tests, no network, a few seconds
+npm test                 # ava, 220-odd tests, no network, a few seconds
 npm run test:coverage    # c8 + ava; reports every file under src/
 npx ava test/import.test.js              # one file
 npx ava --match '*sync-check*'           # by test title
@@ -54,7 +54,7 @@ Requires Node 24+ (`import … with { type: 'json' }`, `import.meta.dirname`); `
 - User-visible changes to a command need the matching README section updated, including its output example and the row in the "Resumen de comandos" table. README examples use made-up people only; never paste output from the real tenant or from `real-excel/`.
 - Prompt types must be ones the installed `inquirer` registers (`select`, not the old `list`). Tests replace `inquirer.prompt`, so only `test/prompt-types.test.js` catches a wrong type.
 - Console output goes through `chalk`; long operations use an `ora` spinner; prompts use `inquirer.prompt`.
-- Underscore-prefixed exports (`_setFakeToken`, `_resetKeyCache`) are test hooks.
+- Underscore-prefixed exports (`_setFakeToken`, `_clearFakeToken`) are test hooks.
 
 ## Testing
 
@@ -86,5 +86,4 @@ const { initAuth, _setFakeToken } = await import('../src/auth.js');
 
 - `findUserByUpn` returns `null` on any Graph error and does not escape quotes in the UPN, so `import` can mistake a failed lookup for "user does not exist" and attempt a create.
 - `import` never prints the password it generates for a new account; the administrator has to run `reset-password` afterwards.
-- `src/utils/token-store.js` is not used by the application (`auth.js` has its own copy of the encryption code). It is only exercised by its tests.
 - `edit.js`, `search.js`, `assign-manager.js`, `validate-users.js` and the interactive `fix org-chart` loop have no tests yet.

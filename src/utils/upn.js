@@ -14,15 +14,3 @@ export function normalizeUpn(value, domain) {
   return `${v}@${domain}`;
 }
 
-/**
- * Extract the domain from a tenant UPN or from a domain string directly.
- * Accepts either "contoso.onmicrosoft.com", "contoso.es", or a full UPN.
- *
- * @param {string} domainOrUpn
- * @returns {string}
- */
-export function parseDomain(domainOrUpn) {
-  if (!domainOrUpn) return '';
-  if (domainOrUpn.includes('@')) return domainOrUpn.split('@')[1];
-  return domainOrUpn;
-}
