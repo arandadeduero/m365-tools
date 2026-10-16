@@ -1,0 +1,14 @@
+package-lock.json
+  h_3aa52f59e1a7c5 794-796,1085-1087,1094,2313-2315,3166-3168,3256-3258,3648-3650,4033-4035
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4f71cfd480c4085f0eb6e10516a9c50ff0da1191",
+  "prompts": {},
+  "humans": {
+    "h_3aa52f59e1a7c5": {
+      "author": "Guillermo López <willyaranda@gmail.com>"
+    }
+  }
+}
