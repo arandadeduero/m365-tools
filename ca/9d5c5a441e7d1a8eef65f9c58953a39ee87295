@@ -1,0 +1,21 @@
+package-lock.json
+  s_46da1e037ac31a::t_54d5004e5e3201 13,25,42-44,74-76,591-593,641-643,657,678-680,923-925,929-930,932,936-937,941,947,949,952,954,957,959,961,968,985-988,992,995,1214-1216,1220,1223,1324-1326,1641-1643,1785-1787,1959-1961,1969,2054-2056,2222-2224,2656-2658,2662,2970-2972,3065-3067,3094-3096,3452-3454,3580-3582,3705-3707,3929-3931,3938
+package.json
+  s_46da1e037ac31a::t_5215e674d61477 40,52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ca9d5c5a441e7d1a8eef65f9c58953a39ee87295",
+  "prompts": {},
+  "sessions": {
+    "s_46da1e037ac31a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "84f37a47-b70d-4e32-b43f-5b4be73a3248",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Guillermo López Leal <guillermo.lopezleal@vonage.com>"
+    }
+  }
+}
