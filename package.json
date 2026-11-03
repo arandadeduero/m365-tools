@@ -2,7 +2,7 @@
   "name": "m365-users",
   "version": "1.0.0",
   "description": "CLI tool to manage Microsoft 365 users via Graph API",
-  "license": "MIT",
+  "license": "EUPL-1.2",
   "type": "module",
   "bin": {
     "m365-users": "./src/index.js"

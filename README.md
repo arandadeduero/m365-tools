@@ -926,7 +926,7 @@ m365-users -c /ruta/a/otro-config.json list
 
 ```
 m365-users/
-├── LICENSE                 # Licencia MIT
+├── LICENSE                 # Licencia EUPL-1.2
 ├── CLAUDE.md               # Guía para trabajar en el código con Claude Code
 ├── .nvmrc                  # Versión de Node (la usa también el CI)
 ├── .github/                # CI (workflows/ci.yml) y Dependabot
@@ -995,4 +995,4 @@ Dependabot (`.github/dependabot.yml`) revisa cada lunes las dependencias de npm 
 
 ## Licencia
 
-[MIT](./LICENSE) © Ayuntamiento de Aranda de Duero
+[Licencia Pública de la Unión Europea (EUPL) v1.2](LICENSE) © Ayuntamiento de Aranda de Duero. Es la licencia común de todo el software del Ayuntamiento: ver [arandadeduero/licencia](https://github.com/arandadeduero/licencia).
